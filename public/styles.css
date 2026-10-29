@@ -312,7 +312,6 @@ select.input { appearance: auto; }
 .auth-wrap > :nth-child(3) { animation-delay: .24s; }
 .auth-brand { display: flex; flex-direction: column; align-items: flex-start; gap: var(--s2); }
 .login-logo { width: min(100%, 340px); height: auto; display: block; }
-.auth-ed { color: var(--muted); font-size: 16px; }
 .auth-form form { display: flex; flex-direction: column; gap: var(--s4); }
 .auth-form h1 { font-weight: 700; letter-spacing: -.01em; font-size: 38px; line-height: 1.1; }
 .auth-form .btn.primary { min-height: 56px; font-size: 18px; }

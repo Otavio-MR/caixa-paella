@@ -131,6 +131,8 @@ app.use('/api', (req, res, next) => {
   if (req.method !== 'GET' && !req.is('application/json')) return res.status(415).json({ error: 'Formato inválido.' });
   next();
 });
+// alguns navegadores pedem /favicon.ico direto, ignorando o link da página
+app.get('/favicon.ico', (req, res) => res.type('image/png').sendFile(path.join(__dirname, 'public', 'assets', 'mark', 'favicon.png')));
 app.use(express.static(path.join(__dirname, 'public')));
 
 const bad = (res, msg, code = 400) => res.status(code).json({ error: msg });

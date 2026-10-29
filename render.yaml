@@ -1,0 +1,12 @@
+# Blueprint do Render: cria o servico web a partir do Dockerfile.
+services:
+  - type: web
+    name: caixa-demo
+    runtime: docker
+    plan: free
+    healthCheckPath: /api/me
+    envVars:
+      - key: DEMO_ADMIN_PASSWORD
+        sync: false
+      - key: DEMO_CAIXA_PASSWORD
+        sync: false

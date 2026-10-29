@@ -1,0 +1,26 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Caixa</title>
+<link rel="icon" type="image/png" href="assets/mark/favicon.png">
+<link rel="preload" href="assets/fonts/Archivo.ttf" as="font" type="font/ttf" crossorigin>
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+<a class="skip" href="#view">Pular para o conteúdo</a>
+<header class="topbar" id="topbar" hidden>
+  <div class="brand" id="brand"></div>
+  <nav class="tabs" id="tabs" aria-label="Seções"></nav>
+  <div class="topbar-end">
+    <span class="status" id="status" role="status"></span>
+    <span class="who"><span class="nm" id="who"></span><button class="btn ghost sm" id="logout"></button></span>
+  </div>
+</header>
+<main id="view" tabindex="-1"></main>
+<div id="toasts" class="toasts" role="status" aria-live="polite"></div>
+<div id="modal-root"></div>
+<script src="app.js"></script>
+</body>
+</html>

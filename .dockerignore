@@ -1,0 +1,7 @@
+node_modules
+data
+.impeccable
+imagens-geradas
+*.bat
+*.md
+.git

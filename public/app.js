@@ -70,22 +70,22 @@ function voucherHtml(sale, s) {
   for (const it of sale.items) {
     for (let k = 1; k <= it.qty; k++) {
       const len = it.name.length;
-      const fs = len <= 9 ? 12 : len <= 16 ? 9.5 : len <= 26 ? 7 : 5.5;
+      const fs = len <= 9 ? 10 : len <= 16 ? 7.6 : len <= 26 ? 5.6 : 4.6;
       pages.push(`<section class="v"><div class="vh">${MARK_PB}<div class="vt"><span class="ve">${esc(s.eventName)}</span></div></div><div class="n" style="font-size:${fs}mm">${esc(it.name)}</div><div class="bot"><b>${k}/${it.qty}</b><span>${esc(when)}</span><span>#${sale.n}</span></div>${s.beneficiary ? `<div class="ben">Em prol do ${esc(s.beneficiary)}</div>` : ''}</section>`);
     }
   }
   return `<!doctype html><html><head><meta charset="utf-8"><style>
-@font-face{font-family:Archivo;src:url(/assets/fonts/Archivo.ttf) format("truetype");font-weight:100 900;font-stretch:62% 125%}
-@page{size:${w}mm ${h}mm;margin:0}*{box-sizing:border-box}html,body{margin:0;padding:0;background:#fff;color:#000;font-family:Archivo,Arial,Helvetica,sans-serif}
+@font-face{font-family:'Public Sans';src:url(/assets/fonts/PublicSans.ttf) format("truetype");font-weight:100 900}
+@page{size:${w}mm ${h}mm;margin:0}*{box-sizing:border-box}html,body{margin:0;padding:0;background:#fff;color:#000;font-family:'Public Sans',Arial,Helvetica,sans-serif}
 .v{width:${w}mm;height:${h}mm;padding:2mm 3mm;display:flex;flex-direction:column;justify-content:space-between;text-align:center;page-break-after:always;break-after:page;overflow:hidden}
 .v:last-child{page-break-after:auto;break-after:auto}
 .vh{display:flex;align-items:center;justify-content:center;gap:2mm;border-bottom:.4mm solid #000;padding-bottom:1mm}
 .lg{height:11mm;width:11mm;flex:none}
 .vt{display:flex;flex-direction:column;align-items:flex-start;line-height:1.05}
-.ve{font-stretch:75%;font-weight:800;text-transform:uppercase;font-size:4.4mm;letter-spacing:.2mm}
-.n{font-stretch:75%;font-weight:800;text-transform:uppercase;line-height:1.02;flex:1;display:flex;align-items:center;justify-content:center;overflow-wrap:anywhere}
+.ve{font-weight:800;text-transform:uppercase;font-size:3.5mm;letter-spacing:0}
+.n{font-weight:800;text-transform:uppercase;line-height:1.02;flex:1;display:flex;align-items:center;justify-content:center;overflow-wrap:anywhere}
 .bot{display:flex;justify-content:space-between;align-items:baseline;font-size:3mm;border-top:.4mm dashed #000;padding-top:1mm;font-weight:600}
-.bot b{font-stretch:75%;font-weight:800;font-size:5mm}
+.bot b{font-weight:800;font-size:4.6mm}
 .ben{font-size:2.5mm;padding-top:.8mm}
 </style></head><body>${pages.join('')}</body></html>`;
 }
@@ -98,7 +98,7 @@ function printHtml(html) {
     f.onload = async () => {
       try {
         const d = f.contentDocument;
-        await Promise.race([d.fonts.load('800 20px Archivo').then(() => d.fonts.ready), new Promise((r) => setTimeout(r, 1500))]);
+        await Promise.race([d.fonts.load("800 20px 'Public Sans'").then(() => d.fonts.ready), new Promise((r) => setTimeout(r, 1500))]);
         f.contentWindow.focus();
         f.contentWindow.print();
         resolve({ ok: true });
@@ -174,7 +174,7 @@ function authScreen(setup, message) {
           <div class="err" id="lerr" role="alert">${esc(message || '')}</div>
           <button class="btn primary" type="submit">${setup ? 'Criar administrador' : 'Entrar'}</button>
         </form>
-        ${brand.beneficiary || brand.organizer ? `<p class="auth-foot">${brand.beneficiary ? 'Em prol do ' + esc(brand.beneficiary) + '. ' : ''}${brand.organizer ? esc(brand.organizer) : ''}</p>` : ''}
+        ${brand.beneficiary ? `<p class="auth-foot">Em prol do ${esc(brand.beneficiary)}</p>` : ''}
       </div>
     </section></div>`;
   // as fotos se movem de leve com o mouse, dando profundidade
@@ -522,15 +522,14 @@ function editUser(raw) {
 /* ---------- ajustes (admin) ---------- */
 function renderConfig() {
   const s = db.settings;
-  $('#view').innerHTML = `<div class="page narrow">
+  $('#view').innerHTML = `<div class="page settings">
     <div class="page-head"><h1>Ajustes</h1></div>
-    <form class="form" id="cf" novalidate>
+    <form class="form settings-grid" id="cf" novalidate>
       <section class="panel"><div class="pad form">
         <div><h2>Textos do voucher</h2><p class="lead">Aparecem no topo e no rodapé de cada voucher impresso.</p></div>
-        <div class="form two">
-          <div class="field" style="grid-column: 1 / -1"><label for="cn">Nome do evento</label><input class="input" id="cn" value="${esc(s.eventName)}" maxlength="50"></div>
+        <div class="form">
+          <div class="field"><label for="cn">Nome do evento</label><input class="input" id="cn" value="${esc(s.eventName)}" maxlength="50"></div>
           <div class="field"><label for="cb">Em prol de</label><input class="input" id="cb" value="${esc(s.beneficiary)}" maxlength="60"></div>
-          <div class="field"><label for="co">Organização</label><input class="input" id="co" value="${esc(s.organizer)}" maxlength="60"></div>
         </div>
       </div></section>
       <section class="panel"><div class="pad form">
@@ -543,11 +542,11 @@ function renderConfig() {
       <div class="err" id="cerr" role="alert"></div>
       <div class="form-actions"><button class="btn primary" type="submit">${icon('check')}Salvar ajustes</button><button class="btn" type="button" id="test">${icon('printer')}Imprimir voucher de teste</button></div>
     </form></div>`;
-  const read = () => ({ eventName: $('#cn').value, beneficiary: $('#cb').value, organizer: $('#co').value, paperWidth: +$('#cw').value, voucherHeight: +$('#ch').value });
+  const read = () => ({ eventName: $('#cn').value, beneficiary: $('#cb').value, paperWidth: +$('#cw').value, voucherHeight: +$('#ch').value });
   const save = async () => {
     const r = await api('PUT', '/api/settings', read());
     db.settings = r.settings;
-    brand = { eventName: r.settings.eventName, beneficiary: r.settings.beneficiary, organizer: r.settings.organizer };
+    brand = { eventName: r.settings.eventName, beneficiary: r.settings.beneficiary };
     document.title = brand.eventName || 'Caixa';
     renderChrome();
   };

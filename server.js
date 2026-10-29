@@ -24,7 +24,6 @@ try { db.exec("ALTER TABLE products ADD COLUMN photo TEXT NOT NULL DEFAULT ''");
 const DEFAULT_SETTINGS = {
   eventName: 'Paella Mineira Solidária',
   beneficiary: 'Hospital do Câncer de Londrina',
-  organizer: 'Maçonaria do Paraná',
   paperWidth: 80,
   voucherHeight: 50,
 };
@@ -140,7 +139,7 @@ const cleanName = (v, max) => String(v || '').trim().slice(0, max);
 app.get('/api/me', (req, res) => {
   const users = db.prepare('SELECT COUNT(*) c FROM users').get().c;
   const settings = getSettings();
-  const brand = { eventName: settings.eventName, beneficiary: settings.beneficiary, organizer: settings.organizer };
+  const brand = { eventName: settings.eventName, beneficiary: settings.beneficiary };
   res.json({ user: currentUser(req), needsSetup: users === 0, brand });
 });
 
@@ -218,7 +217,6 @@ app.put('/api/settings', needAdmin, (req, res) => {
   const next = {
     eventName: cleanName(b.eventName, 50) || DEFAULT_SETTINGS.eventName,
     beneficiary: cleanName(b.beneficiary, 60),
-    organizer: cleanName(b.organizer, 60),
     paperWidth: +b.paperWidth === 58 ? 58 : 80,
     voucherHeight: Math.min(120, Math.max(20, Math.round(+b.voucherHeight) || 45)),
   };

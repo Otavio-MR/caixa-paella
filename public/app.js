@@ -177,6 +177,19 @@ function authScreen(setup, message) {
         ${brand.beneficiary || brand.organizer ? `<p class="auth-foot">${brand.beneficiary ? 'Em prol do ' + esc(brand.beneficiary) + '. ' : ''}${brand.organizer ? esc(brand.organizer) : ''}</p>` : ''}
       </div>
     </section></div>`;
+  // as fotos se movem de leve com o mouse, dando profundidade
+  const auth = $('.auth');
+  if (auth && !reduced()) {
+    let raf = 0;
+    auth.addEventListener('mousemove', (e) => {
+      cancelAnimationFrame(raf);
+      raf = requestAnimationFrame(() => {
+        const r = auth.getBoundingClientRect();
+        auth.style.setProperty('--mx', ((e.clientX - r.left) / r.width - 0.5) * 2);
+        auth.style.setProperty('--my', ((e.clientY - r.top) / r.height - 0.5) * 2);
+      });
+    });
+  }
   (setup ? $('#ln') : $('#lu')).focus();
   $('#lf').onsubmit = async (e) => {
     e.preventDefault();

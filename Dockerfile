@@ -3,6 +3,7 @@ WORKDIR /app
 COPY package.json package-lock.json ./
 RUN npm ci --omit=dev
 COPY server.js ./
+COPY store ./store
 COPY public ./public
 ENV NODE_ENV=production
 ENV DATA_DIR=/app/data

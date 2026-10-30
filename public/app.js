@@ -18,6 +18,7 @@ async function loadSprite() {
 const $ = (s, r = document) => r.querySelector(s);
 const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 const brl = (cents) => (cents / 100).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+const num = (n) => Number(n).toLocaleString('pt-BR');
 const norm = (s) => s.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
 function parseMoney(str) {
   const t = String(str).replace(/[^\d,.]/g, '');
@@ -150,6 +151,14 @@ function confirmBox(title, text, okLabel, onOk) {
 const emptyState = (title, text, action = '') => `<div class="empty"><strong>${title}</strong><p>${text}</p>${action}</div>`;
 
 /* ---------- acesso ---------- */
+// na tela de login aparecem a edição e quantas unidades ainda há (sem revelar quantas foram vendidas)
+function authInfo() {
+  const parts = [];
+  if (brand.edition) parts.push(`<strong>${esc(brand.edition)}</strong>`);
+  const f = brand.featured;
+  if (f && f.available != null) parts.push(f.available > 0 ? `<span><b>${num(f.available)}</b> ${esc(f.name)} disponíveis</span>` : `<span>${esc(f.name)}: esgotado</span>`);
+  return parts.length ? `<p class="auth-info">${parts.join('')}</p>` : '';
+}
 function authScreen(setup, message) {
   $('#topbar').hidden = true;
   $('#view').className = 'bare';
@@ -164,6 +173,7 @@ function authScreen(setup, message) {
       <div class="auth-wrap">
         <div class="auth-brand">
           <img class="login-logo" src="assets/mark/logo.png" alt="${esc(brand.eventName || 'Caixa')}">
+          ${authInfo()}
         </div>
         <form id="lf" novalidate>
           <h1>${setup ? 'Primeiro acesso' : 'Entrar'}</h1>
@@ -208,12 +218,26 @@ const lines = () => cart.map((c) => ({ ...c, p: prod(c.id) })).filter((l) => l.p
 const total = () => lines().reduce((a, l) => a + l.p.price * l.qty, 0);
 const unitCount = () => lines().reduce((a, l) => a + l.qty, 0);
 
+// quanto ainda cabe no pedido: o estoque menos o que já está no pedido
+function room(p) {
+  if (p.stock == null) return Infinity;
+  const l = cart.find((c) => c.id === p.id);
+  return Math.max(0, p.stock - (l ? l.qty : 0));
+}
 function addToCart(id, qty = 1) {
+  const p = prod(id);
+  if (!p) return;
+  const r = room(p);
+  if (r <= 0) { toast(p.stock <= 0 ? `${p.name} esgotou.` : `Só há ${num(p.stock)} de ${p.name} no estoque e já estão no pedido.`, 'error'); return; }
+  const add = Math.min(qty, r);
+  if (add < qty) toast(`Só restam ${num(p.stock)} de ${p.name}. Adicionei ${add}.`, 'error');
   const l = cart.find((c) => c.id === +id);
-  if (l) l.qty = Math.min(99, l.qty + qty); else cart.push({ id: +id, qty: Math.min(99, qty) });
+  if (l) l.qty = Math.min(99, l.qty + add); else cart.push({ id: +id, qty: Math.min(99, add) });
   renderCaixa(false);
 }
 function setQty(id, qty) {
+  const p = prod(id);
+  if (p && p.stock != null && qty > p.stock) { toast(`Só restam ${num(p.stock)} de ${p.name}.`, 'error'); qty = p.stock; }
   cart = qty <= 0 ? cart.filter((c) => c.id !== +id) : cart.map((c) => (c.id === +id ? { ...c, qty: Math.min(qty, 99) } : c));
   renderCaixa(false);
 }
@@ -261,6 +285,7 @@ async function confirmSale() {
   tearSlip();
   cart = []; received = ''; search = '';
   renderCaixa(true);
+  refreshProducts().catch(() => {}); // atualiza o estoque e os contadores
   const res = await printSale(sale);
   if (res.ok) api('POST', `/api/sales/${sale.id}/printed`, {}).catch(() => {});
   if (res.ok) toast(`Venda ${sale.n} confirmada. ${units} ${units === 1 ? 'voucher enviado' : 'vouchers enviados'} para impressão.`, 'ok', { label: 'Reimprimir', run: () => reprint(sale) });
@@ -273,7 +298,10 @@ async function reprint(sale) {
 }
 async function refreshProducts() {
   db = await api('GET', '/api/bootstrap');
-  cart = cart.filter((c) => prod(c.id) && prod(c.id).active);
+  cart = cart
+    .filter((c) => prod(c.id) && prod(c.id).active)
+    .map((c) => { const p = prod(c.id); return p.stock != null && c.qty > p.stock ? { ...c, qty: p.stock } : c; })
+    .filter((c) => c.qty > 0);
   view === 'caixa' && renderCaixa(false);
 }
 
@@ -284,7 +312,7 @@ function renderChrome() {
   $('#view').className = '';
   $('#brand').innerHTML = `<img class="logo-full" src="assets/mark/logo.png" alt="${esc(brand.eventName || 'Caixa')}">`;
   const tabs = [['caixa', 'Caixa', 'cart', 'F1'], ['vendas', isAdmin() ? 'Vendas' : 'Minhas vendas', 'receipt', 'F3']];
-  if (isAdmin()) tabs.push(['produtos', 'Produtos', 'package', 'F4'], ['usuarios', 'Equipe', 'users', ''], ['config', 'Ajustes', 'sliders', '']);
+  if (isAdmin()) tabs.push(['produtos', 'Produtos', 'package', 'F4'], ['estoque', 'Estoque', 'arroz', ''], ['usuarios', 'Equipe', 'users', ''], ['config', 'Ajustes', 'sliders', '']);
   $('#tabs').innerHTML = tabs.map(([k, l, ic, key]) => `<button class="tab" data-view="${k}" ${view === k ? 'aria-current="page"' : ''}>${icon(ic)}<span>${l}</span>${key ? `<kbd>${key}</kbd>` : ''}</button>`).join('');
   $('#who').textContent = me.name;
   $('#logout').innerHTML = `${icon('logout')}Sair`;
@@ -299,7 +327,7 @@ function renderStatus() {
 function go(v) {
   view = v;
   renderChrome();
-  ({ caixa: () => renderCaixa(true), produtos: renderProdutos, vendas: renderVendas, usuarios: renderUsuarios, config: renderConfig })[v]();
+  ({ caixa: () => renderCaixa(true), produtos: renderProdutos, estoque: renderEstoque, vendas: renderVendas, usuarios: renderUsuarios, config: renderConfig })[v]();
 }
 
 /* ---------- caixa ---------- */
@@ -308,6 +336,7 @@ function renderCaixa(full) {
   if (full || !$('.pos')) {
     $('#view').innerHTML = `<div class="pos">
       <section class="catalog" aria-label="Produtos">
+        <div class="event-bar" id="evbar"></div>
         <label class="search">${icon('search')}<input id="search" type="search" autocomplete="off" placeholder="Buscar produto. Ex.: 5 paella e Enter" aria-label="Buscar produto"><kbd>F2</kbd></label>
         <div class="hint" id="hint"></div>
         <div class="grid" id="grid"></div>
@@ -320,9 +349,25 @@ function renderCaixa(full) {
     </div>`;
     $('#search').value = search;
   }
+  renderEventBar();
   renderGrid();
   renderCart();
   if (full) $('#search') && $('#search').focus();
+}
+
+// edição e contador de vendidas e disponíveis do produto em destaque
+function renderEventBar() {
+  const el = $('#evbar');
+  if (!el) return;
+  const f = db.featured;
+  const ed = ((db.settings && db.settings.edition) || '').trim();
+  if (!ed && !f) { el.hidden = true; return; }
+  el.hidden = false;
+  const total = f && f.stock != null ? f.sold + f.stock : 0;
+  const pct = total ? Math.min(100, Math.round((f.sold / total) * 100)) : 0;
+  const low = !!f && f.stock != null && (f.stock === 0 || f.stock <= Math.max(5, total * 0.1));
+  el.className = 'event-bar' + (low ? ' low' : '');
+  el.innerHTML = `${ed ? `<strong class="eb-ed">${esc(ed)}</strong>` : ''}${f ? `<div class="eb-main"><div class="eb-nums"><span><b>${num(f.sold)}</b> vendidas</span>${f.stock != null ? `<span><b>${num(f.stock)}</b> disponíveis</span>` : ''}<span class="eb-name">${esc(f.name)}</span>${low ? `<span class="badge warn">${f.stock === 0 ? 'Esgotado' : 'Poucas restantes'}</span>` : ''}</div>${f.stock != null ? `<div class="eb-bar" role="img" aria-label="${pct}% vendido"><i style="width:${pct}%"></i></div>` : ''}</div>` : ''}`;
 }
 
 function renderGrid() {
@@ -331,8 +376,8 @@ function renderGrid() {
   const inCart = Object.fromEntries(cart.map((c) => [c.id, c.qty]));
   const any = db.products.some((p) => p.active);
   $('#grid').innerHTML = list.length
-    ? list.map((p, i) => `<button class="tile ${inCart[p.id] ? 'sel' : ''} ${term && i === 0 ? 'hit' : ''}" data-add="${p.id}" aria-label="Adicionar ${esc(p.name)}, ${brl(p.price)}">
-        ${inCart[p.id] ? `<span class="count">${inCart[p.id]}</span>` : ''}<span class="media">${p.photo ? `<img src="${esc(p.photo)}" alt="">` : icon(glyph(p.name))}</span><span class="info"><span class="name"><span class="dot" style="--c:${p.color}"></span>${esc(p.name)}</span><span class="price">${brl(p.price)}</span></span></button>`).join('')
+    ? list.map((p, i) => { const out = p.stock != null && p.stock <= 0; const left = p.stock == null ? null : Math.max(0, p.stock - (inCart[p.id] || 0)); return `<button class="tile ${inCart[p.id] ? 'sel' : ''} ${out ? 'out' : ''} ${term && i === 0 ? 'hit' : ''}" data-add="${p.id}" ${out ? 'disabled' : ''} aria-label="${out ? esc(p.name) + ', esgotado' : 'Adicionar ' + esc(p.name) + ', ' + brl(p.price)}">
+        ${inCart[p.id] ? `<span class="count">${inCart[p.id]}</span>` : ''}<span class="media">${p.photo ? `<img src="${esc(p.photo)}" alt="">` : icon(glyph(p.name))}</span><span class="info"><span class="name"><span class="dot" style="--c:${p.color}"></span>${esc(p.name)}</span><span class="price"><span>${brl(p.price)}</span>${left == null ? '' : `<span class="left ${out || left <= 20 ? 'low' : ''}">${out ? 'Esgotado' : 'Restam ' + num(left)}</span>`}</span></span></button>`; }).join('')
     : (any ? emptyState('Nenhum produto encontrado', 'Confira o nome digitado ou limpe a busca com Esc.') : emptyState('Nenhum produto cadastrado', 'Peça ao administrador para cadastrar os produtos.'));
   $('#hint').textContent = term && list[0] ? `Enter adiciona ${qty} × ${list[0].name}` : search ? '' : 'Digite a quantidade antes do nome (5 paella) e aperte Enter. Alt+1, 2 ou 3 escolhe o pagamento.';
 }
@@ -345,7 +390,7 @@ function renderCart() {
   $('#clear').disabled = !ls.length;
   $('#lines').innerHTML = ls.length
     ? ls.map((l) => `<div class="line"><span class="ln">${esc(l.p.name)}<span class="unit">${brl(l.p.price)} cada</span></span>
-        <span class="stepper"><button data-dec="${l.id}" aria-label="Diminuir ${esc(l.p.name)}">${icon('minus')}</button><output aria-label="Quantidade">${l.qty}</output><button data-inc="${l.id}" aria-label="Aumentar ${esc(l.p.name)}">${icon('plus')}</button></span>
+        <span class="stepper"><button data-dec="${l.id}" aria-label="Diminuir ${esc(l.p.name)}">${icon('minus')}</button><output aria-label="Quantidade">${l.qty}</output><button data-inc="${l.id}" aria-label="Aumentar ${esc(l.p.name)}" ${room(l.p) <= 0 ? 'disabled' : ''}>${icon('plus')}</button></span>
         <span class="ls">${brl(l.p.price * l.qty)}</span></div>`).join('')
     : emptyState('Pedido vazio', 'Toque em um produto ou digite o nome na busca.');
   const rec = parseMoney(received);
@@ -362,6 +407,36 @@ function renderCart() {
     </div>` : ''}
     <button class="btn primary go" id="go" ${canGo ? '' : 'disabled'}>${icon('printer')}Confirmar e imprimir<kbd>F9</kbd></button>`;
   if (keep) { const n = $('#received'); n.focus(); n.setSelectionRange(n.value.length, n.value.length); }
+}
+
+/* ---------- estoque (admin) ---------- */
+function renderEstoque() {
+  const ps = db.products;
+  $('#view').innerHTML = `<div class="page">
+    <div class="page-head"><h1>Estoque</h1><div class="tools"><button class="btn danger" id="resetsold">Zerar vendidos (nova edição)</button></div></div>
+    <p class="sub">Informe quantas unidades existem de cada produto. A cada venda o sistema desconta do estoque e não deixa vender além do que resta. Produto marcado como "sem limite" não é controlado.</p>
+    <div class="panel">${ps.length ? `<div class="tbl-wrap"><table class="tbl"><thead><tr><th>Produto</th><th class="r">Vendidos</th><th class="r">Disponíveis</th><th>Ajustar</th></tr></thead><tbody>${ps.map((p) => {
+      const low = p.stock != null && p.stock <= 20;
+      return `<tr>
+      <td><span class="dotc" style="--c:${p.color}"></span><span class="strong">${esc(p.name)}</span> ${p.stock === 0 ? '<span class="badge warn">Esgotado</span>' : low ? '<span class="badge warn">Poucas</span>' : ''}</td>
+      <td class="r">${num(p.sold)}</td>
+      <td class="r strong">${p.stock == null ? '<span class="muted">Sem limite</span>' : num(p.stock)}</td>
+      <td><div class="act-stock"><label class="sr-only" for="st-${p.id}">Quantidade de ${esc(p.name)}</label><input class="input qty" id="st-${p.id}" type="number" min="0" inputmode="numeric" placeholder="Quantidade"><button class="btn sm" data-stock-set="${p.id}">Definir</button><button class="btn sm" data-stock-add="${p.id}">Somar</button><button class="btn sm ghost" data-stock-none="${p.id}">Sem limite</button></div></td></tr>`;
+    }).join('')}</tbody></table></div>`
+    : `<div class="pad">${emptyState('Nenhum produto', 'Cadastre produtos para controlar o estoque.')}</div>`}</div></div>`;
+}
+
+async function adjustStock(d) {
+  const id = +(d.stockSet || d.stockAdd || d.stockNone);
+  const input = $(`#st-${id}`);
+  const n = input ? input.value.trim() : '';
+  let body;
+  if (d.stockNone) body = { set: null };
+  else {
+    if (!/^-?\d+$/.test(n)) return toast('Digite a quantidade, só números.', 'error');
+    body = d.stockSet ? { set: +n } : { add: +n };
+  }
+  try { await api('PUT', `/api/products/${id}/stock`, body); await refreshProducts(); renderEstoque(); toast('Estoque atualizado.'); } catch (e) { failToast(e); }
 }
 
 /* ---------- produtos (admin) ---------- */
@@ -401,6 +476,7 @@ function editProduct(id) {
     <form class="form" id="pf" novalidate>
       <div class="field"><label for="pn">Nome (aparece no voucher)</label><input class="input" id="pn" value="${esc(p.name)}" maxlength="40" autocomplete="off" autofocus></div>
       <div class="field"><label for="pp">Preço (R$)</label><input class="input" id="pp" inputmode="decimal" value="${p.price ? moneyInput(p.price) : ''}" placeholder="0,00" autocomplete="off"></div>
+      ${id === 'new' ? '<div class="field"><label for="pst">Quantidade em estoque (opcional)</label><input class="input" id="pst" inputmode="numeric" placeholder="Deixe vazio para não limitar" autocomplete="off"><span class="sub">Depois você ajusta na aba Estoque.</span></div>' : ''}
       <div class="field"><label for="ppick">Foto do produto (opcional)</label>
         <div class="photo-pick"><span class="media" id="pprev"></span><div class="photo-actions"><input id="pfile" type="file" accept="image/*" hidden><button type="button" class="btn" id="ppick">Escolher foto</button><button type="button" class="btn ghost" id="prem">Remover foto</button></div></div>
         <span class="sub">Sem foto, o produto usa o ícone padrão.</span></div>
@@ -431,6 +507,7 @@ function editProduct(id) {
       if (!name) { err.textContent = 'Informe o nome do produto.'; r.querySelector('#pn').focus(); return; }
       if (price <= 0) { err.textContent = 'Informe um preço maior que zero. Ex.: 8,50'; r.querySelector('#pp').focus(); return; }
       const body = { name, price, color: p.color, active: r.querySelector('#pa').checked, photo: p.photo || '' };
+      if (!p.id) body.stock = r.querySelector('#pst').value.trim();
       try {
         await (p.id ? api('PUT', `/api/products/${p.id}`, body) : api('POST', '/api/products', body));
         await refreshProducts(); closeModal(); renderProdutos(); toast('Produto salvo.');
@@ -533,6 +610,13 @@ function renderConfig() {
         </div>
       </div></section>
       <section class="panel"><div class="pad form">
+        <div><h2>Tela inicial</h2><p class="lead">A edição e o contador de vendidas e disponíveis aparecem no topo do Caixa. Na tela de login aparecem a edição e quantas ainda estão disponíveis.</p></div>
+        <div class="form">
+          <div class="field"><label for="ce">Edição</label><input class="input" id="ce" value="${esc(s.edition || '')}" maxlength="30" placeholder="Ex.: 6ª edição"></div>
+          <div class="field"><label for="cfp">Produto do contador</label><select class="input" id="cfp"><option value="">Automático (a paella)</option>${db.products.map((p) => `<option value="${p.id}" ${s.featuredProductId === p.id ? 'selected' : ''}>${esc(p.name)}</option>`).join('')}</select></div>
+        </div>
+      </div></section>
+      <section class="panel"><div class="pad form">
         <div><h2>Papel da impressora</h2><p class="lead">Para imprimir direto, sem janela de confirmação, abra o caixa pelo atalho "Abrir Caixa.bat" e deixe a impressora térmica como padrão do Windows.</p></div>
         <div class="form two">
           <div class="field"><label for="cw">Largura do papel</label><select class="input" id="cw"><option value="58" ${s.paperWidth === 58 ? 'selected' : ''}>58 mm</option><option value="80" ${s.paperWidth === 80 ? 'selected' : ''}>80 mm</option></select></div>
@@ -542,11 +626,12 @@ function renderConfig() {
       <div class="err" id="cerr" role="alert"></div>
       <div class="form-actions"><button class="btn primary" type="submit">${icon('check')}Salvar ajustes</button><button class="btn" type="button" id="test">${icon('printer')}Imprimir voucher de teste</button></div>
     </form></div>`;
-  const read = () => ({ eventName: $('#cn').value, beneficiary: $('#cb').value, paperWidth: +$('#cw').value, voucherHeight: +$('#ch').value });
+  const read = () => ({ eventName: $('#cn').value, beneficiary: $('#cb').value, edition: $('#ce').value, featuredProductId: $('#cfp').value ? +$('#cfp').value : null, paperWidth: +$('#cw').value, voucherHeight: +$('#ch').value });
   const save = async () => {
     const r = await api('PUT', '/api/settings', read());
     db.settings = r.settings;
-    brand = { eventName: r.settings.eventName, beneficiary: r.settings.beneficiary };
+    brand = { ...brand, eventName: r.settings.eventName, beneficiary: r.settings.beneficiary, edition: r.settings.edition };
+    await refreshProducts();
     document.title = brand.eventName || 'Caixa';
     renderChrome();
   };
@@ -585,6 +670,10 @@ document.addEventListener('click', (e) => {
       try { await api('DELETE', `/api/products/${p.id}`); await refreshProducts(); renderProdutos(); toast('Produto excluído.'); } catch (er) { failToast(er); }
     });
   }
+  if (d.stockSet || d.stockAdd || d.stockNone) return adjustStock(d);
+  if (t.id === 'resetsold') return confirmBox('Zerar vendidos?', 'O contador de vendidos de todos os produtos volta para zero, para começar uma nova edição. O estoque disponível não muda e o histórico de vendas continua.', 'Zerar', async () => {
+    try { await api('POST', '/api/stock/reset-sold', {}); await refreshProducts(); renderEstoque(); toast('Contagem de vendidos zerada.'); } catch (er) { failToast(er); }
+  });
   if (d.user) return editUser(d.user);
   if ('retry' in d) return go(view);
   if (d.filter) { salesFilter = d.filter; return renderVendas(); }
@@ -618,6 +707,7 @@ document.addEventListener('keydown', (e) => {
   if (e.key === 'F3') { e.preventDefault(); return go('vendas'); }
   if (e.key === 'F4' && isAdmin()) { e.preventDefault(); return go('produtos'); }
   if (e.key === 'F2') { e.preventDefault(); if (view !== 'caixa') go('caixa'); $('#search').focus(); $('#search').select(); return; }
+  if (e.key === 'Enter' && e.target.classList && e.target.classList.contains('qty')) { e.preventDefault(); return adjustStock({ stockSet: e.target.id.replace('st-', '') }); }
   if (view !== 'caixa' || !$('#search')) return;
   if (e.key === '/' && document.activeElement.tagName !== 'INPUT') { e.preventDefault(); $('#search').focus(); $('#search').select(); return; }
   if (e.key === 'F9' || (e.key === 'Enter' && e.ctrlKey)) { e.preventDefault(); confirmSale(); return; }
@@ -651,3 +741,5 @@ async function boot() {
   go('caixa');
 }
 boot();
+// vários caixas vendem do mesmo estoque; o Caixa se atualiza sozinho
+setInterval(() => { if (me && view === 'caixa' && !document.hidden && !busy && !$('#modal-root').firstChild) refreshProducts().catch(() => {}); }, 15000);

@@ -10,3 +10,6 @@ services:
         sync: false
       - key: DEMO_CAIXA_PASSWORD
         sync: false
+      # Endereço do banco MongoDB Atlas (veja o PUBLICAR.md). Sem ele o sistema usa o SQLite do servidor, que se apaga ao reiniciar.
+      - key: MONGODB_URI
+        sync: false

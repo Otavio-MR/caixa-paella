@@ -3,7 +3,14 @@
   "version": "2.0.0",
   "description": "Caixa web com login e impressao de vouchers em impressora termica",
   "main": "server.js",
-  "scripts": { "start": "node server.js" },
-  "engines": { "node": ">=22.5" },
-  "dependencies": { "express": "^4.21.2" }
+  "scripts": {
+    "start": "node server.js"
+  },
+  "engines": {
+    "node": ">=22.5"
+  },
+  "dependencies": {
+    "express": "^4.21.2",
+    "mongodb": "^6.21.0"
+  }
 }

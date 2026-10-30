@@ -46,7 +46,10 @@ CREATE TABLE IF NOT EXISTS settings(key TEXT PRIMARY KEY, value TEXT NOT NULL);
       return db.prepare('SELECT u.id, u.username, u.name, u.role FROM sessions s JOIN users u ON u.id = s.user_id WHERE s.token = ? AND s.expires > ? AND u.active = 1').get(token, now) || null;
     },
     async deleteSession(token) { db.prepare('DELETE FROM sessions WHERE token = ?').run(token); },
-    async deleteSessionsOfUser(userId) { db.prepare('DELETE FROM sessions WHERE user_id = ?').run(userId); },
+    async deleteSessionsOfUser(userId, exceptToken) {
+      if (exceptToken) db.prepare('DELETE FROM sessions WHERE user_id = ? AND token != ?').run(userId, exceptToken);
+      else db.prepare('DELETE FROM sessions WHERE user_id = ?').run(userId);
+    },
     async purgeSessions(now) { db.prepare('DELETE FROM sessions WHERE expires < ?').run(now); },
 
     /* produtos */
@@ -103,6 +106,29 @@ CREATE TABLE IF NOT EXISTS settings(key TEXT PRIMARY KEY, value TEXT NOT NULL);
       if (userId != null) { where.push('user_id = ?'); args.push(userId); }
       const sql = `SELECT * FROM sales ${where.length ? 'WHERE ' + where.join(' AND ') : ''} ORDER BY id DESC LIMIT ${Math.max(1, Math.min(10000, limit | 0))}`;
       return db.prepare(sql).all(...args).map(sale);
+    },
+    async deleteSale(id) {
+      const r = db.prepare('SELECT * FROM sales WHERE id = ?').get(id);
+      if (!r) return null;
+      db.prepare('DELETE FROM sales WHERE id = ?').run(id);
+      return sale(r);
+    },
+    // apaga todas as vendas, volta a numeração para 1 e devolve os vendidos ao estoque
+    async resetSales() {
+      db.exec('BEGIN IMMEDIATE');
+      try {
+        db.exec("DELETE FROM sales; DELETE FROM sqlite_sequence WHERE name = 'sales';");
+        db.exec('UPDATE products SET stock = CASE WHEN stock IS NULL THEN NULL ELSE stock + sold END, sold = 0');
+        db.exec('COMMIT');
+      } catch (e) { try { db.exec('ROLLBACK'); } catch { /* já desfeito */ } throw e; }
+    },
+    // deixa o sistema como novo: sem produtos, estoque e vendas (os usuários ficam)
+    async wipeData() {
+      db.exec('BEGIN IMMEDIATE');
+      try {
+        db.exec("DELETE FROM sales; DELETE FROM products; DELETE FROM sqlite_sequence WHERE name IN ('sales', 'products'); DELETE FROM settings WHERE key = 'featuredProductId';");
+        db.exec('COMMIT');
+      } catch (e) { try { db.exec('ROLLBACK'); } catch { /* já desfeito */ } throw e; }
     },
     async findSale(id) { const r = db.prepare('SELECT id, user_id FROM sales WHERE id = ?').get(id); return r || null; },
     async markPrinted(id) { db.prepare('UPDATE sales SET printed = 1 WHERE id = ?').run(id); },

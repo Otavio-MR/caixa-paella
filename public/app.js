@@ -151,13 +151,17 @@ function confirmBox(title, text, okLabel, onOk) {
 const emptyState = (title, text, action = '') => `<div class="empty"><strong>${title}</strong><p>${text}</p>${action}</div>`;
 
 /* ---------- acesso ---------- */
-// na tela de login aparecem a edição e quantas unidades ainda há (sem revelar quantas foram vendidas)
-function authInfo() {
-  const parts = [];
-  if (brand.edition) parts.push(`<strong>${esc(brand.edition)}</strong>`);
+// na tela de login, um ticket mostra a edição e quantas já foram vendidas e quantas ainda há
+function authTicket() {
   const f = brand.featured;
-  if (f && f.available != null) parts.push(f.available > 0 ? `<span><b>${num(f.available)}</b> ${esc(f.name)} disponíveis</span>` : `<span>${esc(f.name)}: esgotado</span>`);
-  return parts.length ? `<p class="auth-info">${parts.join('')}</p>` : '';
+  const ed = (brand.edition || '').trim();
+  if (!ed && !f && !brand.beneficiary) return '';
+  const counts = f ? `<div class="tk-counts"><div><b>${num(f.sold || 0)}</b><span>vendidas</span></div>${f.available != null ? `<div><b>${num(f.available)}</b><span>${f.available > 0 ? 'disponíveis' : 'esgotado'}</span></div>` : ''}</div>` : '';
+  return `<div class="ticket-wrap"><div class="ticket" role="group" aria-label="Situação da edição">
+    <div class="tk-top"><strong>${esc(ed || brand.eventName || '')}</strong>${f ? `<span>${esc(f.name)}</span>` : ''}</div>
+    ${counts}
+    ${brand.beneficiary ? `<p class="tk-foot">Em prol do ${esc(brand.beneficiary)}</p>` : ''}
+  </div></div>`;
 }
 function authScreen(setup, message) {
   $('#topbar').hidden = true;
@@ -173,7 +177,6 @@ function authScreen(setup, message) {
       <div class="auth-wrap">
         <div class="auth-brand">
           <img class="login-logo" src="assets/mark/logo.png" alt="${esc(brand.eventName || 'Caixa')}">
-          ${authInfo()}
         </div>
         <form id="lf" novalidate>
           <h1>${setup ? 'Primeiro acesso' : 'Entrar'}</h1>
@@ -184,7 +187,7 @@ function authScreen(setup, message) {
           <div class="err" id="lerr" role="alert">${esc(message || '')}</div>
           <button class="btn primary" type="submit">${setup ? 'Criar administrador' : 'Entrar'}</button>
         </form>
-        ${brand.beneficiary ? `<p class="auth-foot">Em prol do ${esc(brand.beneficiary)}</p>` : ''}
+        ${authTicket()}
       </div>
     </section></div>`;
   // as fotos se movem de leve com o mouse, dando profundidade
@@ -378,7 +381,7 @@ function renderGrid() {
   $('#grid').innerHTML = list.length
     ? list.map((p, i) => { const out = p.stock != null && p.stock <= 0; const left = p.stock == null ? null : Math.max(0, p.stock - (inCart[p.id] || 0)); return `<button class="tile ${inCart[p.id] ? 'sel' : ''} ${out ? 'out' : ''} ${term && i === 0 ? 'hit' : ''}" data-add="${p.id}" ${out ? 'disabled' : ''} aria-label="${out ? esc(p.name) + ', esgotado' : 'Adicionar ' + esc(p.name) + ', ' + brl(p.price)}">
         ${inCart[p.id] ? `<span class="count">${inCart[p.id]}</span>` : ''}<span class="media">${p.photo ? `<img src="${esc(p.photo)}" alt="">` : icon(glyph(p.name))}</span><span class="info"><span class="name"><span class="dot" style="--c:${p.color}"></span>${esc(p.name)}</span><span class="price"><span>${brl(p.price)}</span>${left == null ? '' : `<span class="left ${out || left <= 20 ? 'low' : ''}">${out ? 'Esgotado' : 'Restam ' + num(left)}</span>`}</span></span></button>`; }).join('')
-    : (any ? emptyState('Nenhum produto encontrado', 'Confira o nome digitado ou limpe a busca com Esc.') : emptyState('Nenhum produto cadastrado', 'Peça ao administrador para cadastrar os produtos.'));
+    : (any ? emptyState('Nenhum produto encontrado', 'Confira o nome digitado ou limpe a busca com Esc.') : (isAdmin() ? emptyState('Nenhum produto cadastrado', 'Cadastre os produtos do evento para começar a vender.', `<button class="btn primary" data-view="produtos">${icon('plus')}Cadastrar produtos</button>`) : emptyState('Nenhum produto cadastrado', 'Peça ao administrador para cadastrar os produtos.')));
   $('#hint').textContent = term && list[0] ? `Enter adiciona ${qty} × ${list[0].name}` : search ? '' : 'Digite a quantidade antes do nome (5 paella) e aperte Enter. Alt+1, 2 ou 3 escolhe o pagamento.';
 }
 
@@ -535,7 +538,8 @@ async function renderVendas() {
   $('#view').innerHTML = `<div class="page">
     <div class="page-head"><h1>${isAdmin() ? 'Vendas' : 'Minhas vendas'}</h1><div class="tools">
       ${isAdmin() ? `<div class="seg2" role="group" aria-label="Período"><button data-filter="hoje" aria-pressed="${salesFilter === 'hoje'}">Hoje</button><button data-filter="tudo" aria-pressed="${salesFilter === 'tudo'}">Tudo</button></div>
-      <button class="btn" id="csv" ${list.length ? '' : 'disabled'}>${icon('download')}Exportar CSV</button>` : ''}</div></div>
+      <button class="btn" id="csv" ${list.length ? '' : 'disabled'}>${icon('download')}Exportar CSV</button>
+      <button class="btn danger" id="resetsales">${icon('trash')}Apagar todas as vendas</button>` : ''}</div></div>
     <dl class="summary"><div><dt>Faturamento</dt><dd>${brl(sum(list))}</dd></div><div><dt>Vendas</dt><dd>${list.length}</dd></div><div><dt>Vouchers emitidos</dt><dd>${units}</dd></div></dl>
     ${list.length ? `<div class="breakdown">
       <div><h2>Por forma de pagamento</h2><ul>${Object.entries(METHODS).map(([k, [l]]) => li(l, brl(sum(list.filter((s) => s.method === k))))).join('')}</ul></div>
@@ -545,7 +549,7 @@ async function renderVendas() {
       <td class="strong">${s.n}</td><td class="nw">${fmtDate(s.at)}</td>${isAdmin() ? `<td class="nw">${esc(s.userName)}</td>` : ''}
       <td>${s.items.map((i) => `${i.qty}× ${esc(i.name)}`).join(', ')}</td>
       <td class="nw">${METHODS[s.method][0]}</td><td class="r strong">${brl(s.total)}</td>
-      <td class="act">${s.printed ? '' : '<span class="badge warn">Não impresso</span> '}<button class="btn sm" data-reprint="${s.id}">${icon('printer')}Reimprimir</button></td></tr>`).join('')}</tbody></table></div>`
+      <td class="act">${s.printed ? '' : '<span class="badge warn">Não impresso</span> '}<button class="btn sm" data-reprint="${s.id}">${icon('printer')}Reimprimir</button>${isAdmin() ? ` <button class="btn sm danger" data-delsale="${s.id}" aria-label="Excluir venda ${s.n}">${icon('trash')}Excluir</button>` : ''}</td></tr>`).join('')}</tbody></table></div>`
     : `<div class="pad">${emptyState('Nenhuma venda ' + scope + ' ainda', 'As vendas confirmadas aparecem aqui.')}</div>`}</div></div>`;
 }
 
@@ -566,7 +570,7 @@ async function renderUsuarios() {
   try { users = (await api('GET', '/api/users')).users; } catch (e) { failToast(e); return ($('#view').innerHTML = `<div class="page compact"><div class="panel"><div class="pad">${emptyState('Não foi possível carregar a equipe', esc(e.message), '<button class="btn primary" data-retry>Tentar de novo</button>')}</div></div></div>`); }
   if (view !== 'usuarios') return;
   $('#view').innerHTML = `<div class="page compact">
-    <div class="page-head"><h1>Equipe</h1><div class="tools"><button class="btn primary" data-user="new">${icon('plus')}Novo usuário</button></div></div>
+    <div class="page-head"><h1>Equipe</h1><div class="tools"><button class="btn" id="mypw">${icon('cadeado')}Alterar minha senha</button><button class="btn primary" data-user="new">${icon('plus')}Novo usuário</button></div></div>
     <div class="panel"><div class="tbl-wrap"><table class="tbl"><thead><tr><th>Nome</th><th>Usuário</th><th>Perfil</th><th>Situação</th><th><span class="sr-only">Ações</span></th></tr></thead><tbody>${users.map((u) => `<tr>
       <td class="strong">${esc(u.name)}</td><td>${esc(u.username)}</td><td>${u.role === 'admin' ? 'Administrador' : 'Caixa'}</td>
       <td>${u.active ? 'Ativo' : '<span class="badge off">Desativado</span>'}</td>
@@ -596,6 +600,41 @@ function editUser(raw) {
   });
 }
 
+/* ---------- senha, apagar vendas e recomeçar ---------- */
+function changeMyPassword() {
+  modal(`<h2>Alterar minha senha</h2>
+    <form class="form" id="pwf" novalidate>
+      <div class="field"><label for="pc">Senha atual</label><input class="input" id="pc" type="password" autocomplete="current-password" autofocus></div>
+      <div class="field"><label for="pn1">Nova senha (mínimo 6 caracteres)</label><input class="input" id="pn1" type="password" autocomplete="new-password"></div>
+      <div class="field"><label for="pn2">Repita a nova senha</label><input class="input" id="pn2" type="password" autocomplete="new-password"></div>
+      <div class="err" id="pwerr" role="alert"></div>
+      <div class="actions"><button type="button" class="btn" data-close>Cancelar</button><button class="btn primary" type="submit">Salvar senha</button></div>
+    </form>`, (r) => {
+    r.querySelector('#pwf').onsubmit = async (e) => {
+      e.preventDefault();
+      const err = r.querySelector('#pwerr');
+      const a = r.querySelector('#pn1').value;
+      if (a !== r.querySelector('#pn2').value) { err.textContent = 'As duas senhas novas não são iguais.'; return; }
+      try { await api('POST', '/api/me/password', { current: r.querySelector('#pc').value, next: a }); closeModal(); toast('Senha alterada.'); } catch (er) { err.textContent = er.message; }
+    };
+  });
+}
+
+function wipeSystem() {
+  modal(`<h2>Começar do zero?</h2>
+    <p>Isso apaga todos os produtos, o estoque e todas as vendas, e a numeração dos vouchers volta para 1. Não dá para desfazer. Os usuários e as senhas continuam.</p>
+    <div class="field"><label for="wc">Digite APAGAR para confirmar</label><input class="input" id="wc" autocomplete="off" autofocus></div>
+    <div class="err" id="werr" role="alert"></div>
+    <div class="actions"><button type="button" class="btn" data-close>Cancelar</button><button class="btn danger" id="wgo" disabled>Apagar tudo</button></div>`, (r) => {
+    const go = r.querySelector('#wgo');
+    const input = r.querySelector('#wc');
+    input.addEventListener('input', () => { go.disabled = input.value.trim() !== 'APAGAR'; });
+    go.onclick = async () => {
+      try { await api('POST', '/api/system/reset', { confirm: 'APAGAR' }); cart = []; await refreshProducts(); closeModal(); renderConfig(); toast('O sistema está como novo.'); } catch (er) { r.querySelector('#werr').textContent = er.message; }
+    };
+  });
+}
+
 /* ---------- ajustes (admin) ---------- */
 function renderConfig() {
   const s = db.settings;
@@ -610,7 +649,7 @@ function renderConfig() {
         </div>
       </div></section>
       <section class="panel"><div class="pad form">
-        <div><h2>Tela inicial</h2><p class="lead">A edição e o contador de vendidas e disponíveis aparecem no topo do Caixa. Na tela de login aparecem a edição e quantas ainda estão disponíveis.</p></div>
+        <div><h2>Tela inicial</h2><p class="lead">A edição e o contador de vendidas e disponíveis aparecem no topo do Caixa. Na tela de login, um ticket mostra a edição e quantas já foram vendidas e quantas ainda há.</p></div>
         <div class="form">
           <div class="field"><label for="ce">Edição</label><input class="input" id="ce" value="${esc(s.edition || '')}" maxlength="30" placeholder="Ex.: 6ª edição"></div>
           <div class="field"><label for="cfp">Produto do contador</label><select class="input" id="cfp"><option value="">Automático (a paella)</option>${db.products.map((p) => `<option value="${p.id}" ${s.featuredProductId === p.id ? 'selected' : ''}>${esc(p.name)}</option>`).join('')}</select></div>
@@ -622,6 +661,10 @@ function renderConfig() {
           <div class="field"><label for="cw">Largura do papel</label><select class="input" id="cw"><option value="58" ${s.paperWidth === 58 ? 'selected' : ''}>58 mm</option><option value="80" ${s.paperWidth === 80 ? 'selected' : ''}>80 mm</option></select></div>
           <div class="field"><label for="ch">Altura de cada voucher (mm)</label><input class="input" id="ch" type="number" min="20" max="120" value="${s.voucherHeight}"></div>
         </div>
+      </div></section>
+      <section class="panel full"><div class="pad form">
+        <div><h2>Começar do zero</h2><p class="lead">Apaga todos os produtos, o estoque e todas as vendas, e a numeração dos vouchers volta para 1. Os usuários e as senhas ficam. Use depois de testar o sistema ou antes de um novo evento.</p></div>
+        <div><button type="button" class="btn danger" id="wipe">${icon('trash')}Apagar produtos, estoque e vendas</button></div>
       </div></section>
       <div class="err" id="cerr" role="alert"></div>
       <div class="form-actions"><button class="btn primary" type="submit">${icon('check')}Salvar ajustes</button><button class="btn" type="button" id="test">${icon('printer')}Imprimir voucher de teste</button></div>
@@ -670,6 +713,17 @@ document.addEventListener('click', (e) => {
       try { await api('DELETE', `/api/products/${p.id}`); await refreshProducts(); renderProdutos(); toast('Produto excluído.'); } catch (er) { failToast(er); }
     });
   }
+  if (t.id === 'mypw') return changeMyPassword();
+  if (t.id === 'wipe') return wipeSystem();
+  if (d.delsale) {
+    const s = loadedSales.find((x) => x.id === +d.delsale);
+    return confirmBox(`Excluir a venda ${s ? s.n : ''}?`, 'Os itens voltam para o estoque. O número dessa venda não é reaproveitado.', 'Excluir', async () => {
+      try { await api('DELETE', `/api/sales/${d.delsale}`); await refreshProducts(); renderVendas(); toast('Venda excluída.'); } catch (er) { failToast(er); }
+    });
+  }
+  if (t.id === 'resetsales') return confirmBox('Apagar todas as vendas?', 'Todas as vendas são apagadas e a numeração dos vouchers volta para 1. Os itens vendidos voltam para o estoque. Não dá para desfazer.', 'Apagar tudo', async () => {
+    try { await api('POST', '/api/sales/reset', {}); await refreshProducts(); renderVendas(); toast('Vendas apagadas. A numeração recomeça em 1.'); } catch (er) { failToast(er); }
+  });
   if (d.stockSet || d.stockAdd || d.stockNone) return adjustStock(d);
   if (t.id === 'resetsold') return confirmBox('Zerar vendidos?', 'O contador de vendidos de todos os produtos volta para zero, para começar uma nova edição. O estoque disponível não muda e o histórico de vendas continua.', 'Zerar', async () => {
     try { await api('POST', '/api/stock/reset-sold', {}); await refreshProducts(); renderEstoque(); toast('Contagem de vendidos zerada.'); } catch (er) { failToast(er); }

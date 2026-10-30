@@ -52,7 +52,7 @@ module.exports = function createMongoStore(uri, dbName) {
       return u ? { id: u._id, username: u.username, name: u.name, role: u.role } : null;
     },
     async deleteSession(token) { await col('sessions').deleteOne({ _id: token }); },
-    async deleteSessionsOfUser(userId) { await col('sessions').deleteMany({ user_id: userId }); },
+    async deleteSessionsOfUser(userId, exceptToken) { await col('sessions').deleteMany(exceptToken ? { user_id: userId, _id: { $ne: exceptToken } } : { user_id: userId }); },
     async purgeSessions() { /* o índice TTL do Mongo apaga sozinho */ },
 
     /* produtos */
@@ -128,6 +128,26 @@ module.exports = function createMongoStore(uri, dbName) {
       if (userId != null) q.user_id = userId;
       const rows = await col('sales').find(q).sort({ _id: -1 }).limit(Math.max(1, Math.min(10000, limit | 0))).toArray();
       return rows.map(sale);
+    },
+    async deleteSale(id) {
+      const d = await col('sales').findOneAndDelete({ _id: id });
+      return d ? sale(d) : null;
+    },
+    // apaga todas as vendas, volta a numeração para 1 e devolve os vendidos ao estoque
+    async resetSales() {
+      await col('sales').deleteMany({});
+      await col('counters').updateOne({ _id: 'sales' }, { $set: { seq: 0 } }, { upsert: true });
+      await col('products').updateMany({}, [{ $set: {
+        stock: { $cond: [{ $eq: [{ $ifNull: ['$stock', null] }, null] }, null, { $add: ['$stock', { $ifNull: ['$sold', 0] }] }] },
+        sold: 0,
+      } }]);
+    },
+    // deixa o sistema como novo: sem produtos, estoque e vendas (os usuários ficam)
+    async wipeData() {
+      await col('sales').deleteMany({});
+      await col('products').deleteMany({});
+      await col('counters').deleteMany({ _id: { $in: ['sales', 'products'] } });
+      await col('settings').deleteOne({ _id: 'featuredProductId' });
     },
     async findSale(id) { const d = await col('sales').findOne({ _id: id }, { projection: { user_id: 1 } }); return d ? { id: d._id, user_id: d.user_id } : null; },
     async markPrinted(id) { await col('sales').updateOne({ _id: id }, { $set: { printed: true } }); },

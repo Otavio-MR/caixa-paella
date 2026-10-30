@@ -66,13 +66,7 @@ function tooManyAttempts(key) {
   return list.length >= 8;
 }
 
-/* ---------- dados iniciais e demonstração ---------- */
-async function seedBasics() {
-  if (!(await store.countProducts())) {
-    await store.insertProduct({ name: 'Paella Mineira (1 kg)', price: 8000, color: '#E8833A', active: true, photo: '' });
-  }
-}
-
+/* ---------- demonstração ---------- */
 // só com DEMO_ADMIN_PASSWORD definida e banco sem usuários
 async function seedDemo() {
   const adminPw = process.env.DEMO_ADMIN_PASSWORD;
@@ -85,8 +79,8 @@ async function seedDemo() {
   const admin = await addUser('admin', 'Administrador', 'admin', adminPw);
   const caixa = caixaPw ? await addUser('caixa', 'Caixa 1', 'caixa', caixaPw) : admin;
   const caixaName = caixaPw ? 'Caixa 1' : 'Administrador';
-  if ((await store.countProducts()) <= 1) {
-    for (const [name, price, color] of [['Refrigerante lata', 600, '#D8573F'], ['Suco natural', 500, '#8EB36B'], ['Água mineral', 300, '#5FA8A0'], ['Pudim', 700, '#C98BB5']]) {
+  if ((await store.countProducts()) === 0) {
+    for (const [name, price, color] of [['Paella Mineira (1 kg)', 8000, '#E8833A'], ['Refrigerante lata', 600, '#D8573F'], ['Suco natural', 500, '#8EB36B'], ['Água mineral', 300, '#5FA8A0'], ['Pudim', 700, '#C98BB5']]) {
       await store.insertProduct({ name, price, color, active: true, photo: '' });
     }
   }
@@ -141,7 +135,7 @@ const cleanName = (v, max) => String(v || '').trim().slice(0, max);
 app.get('/api/me', wrap(async (req, res) => {
   const [users, settings, user, products] = await Promise.all([store.countUsers(), getSettings(), currentUser(req), store.listProducts()]);
   const f = featuredOf(products, settings);
-  res.json({ user, needsSetup: users === 0, brand: { eventName: settings.eventName, beneficiary: settings.beneficiary, edition: settings.edition, featured: f ? { name: f.name, available: f.stock } : null } });
+  res.json({ user, needsSetup: users === 0, brand: { eventName: settings.eventName, beneficiary: settings.beneficiary, edition: settings.edition, featured: f ? { name: f.name, available: f.stock, sold: f.sold } : null } });
 }));
 
 app.post('/api/setup', wrap(async (req, res) => {
@@ -320,6 +314,37 @@ app.post('/api/sales/:id/printed', wrap(async (req, res) => {
   res.json({ ok: true });
 }));
 
+/* apagar vendas e recomeçar */
+app.delete('/api/sales/:id', needAdmin, wrap(async (req, res) => {
+  const s = await store.deleteSale(+req.params.id);
+  if (!s) return bad(res, 'Venda não encontrada.', 404);
+  const need = new Map();
+  for (const it of s.items) need.set(it.id, (need.get(it.id) || 0) + it.qty);
+  await store.releaseStock([...need].map(([id, qty]) => ({ id, qty }))); // os itens voltam para o estoque
+  res.json({ ok: true, number: s.id });
+}));
+app.post('/api/sales/reset', needAdmin, wrap(async (req, res) => {
+  await store.resetSales();
+  res.json({ ok: true });
+}));
+app.post('/api/system/reset', needAdmin, wrap(async (req, res) => {
+  if (!req.body || req.body.confirm !== 'APAGAR') return bad(res, 'Digite APAGAR para confirmar.');
+  await store.wipeData();
+  res.json({ ok: true });
+}));
+
+/* senha de quem está logado */
+app.post('/api/me/password', wrap(async (req, res) => {
+  const { current, next } = req.body || {};
+  const u = await store.findUserById(req.user.id);
+  if (!u || !checkPw(String(current || ''), u.salt, u.hash)) return bad(res, 'A senha atual está incorreta.', 403);
+  if (String(next || '').length < 6) return bad(res, 'A nova senha precisa ter pelo menos 6 caracteres.');
+  const salt = crypto.randomBytes(16).toString('hex');
+  await store.setUserPassword(u.id, salt, hashPw(String(next), salt));
+  await store.deleteSessionsOfUser(u.id, cookie(req, 'sid')); // sai dos outros aparelhos, continua neste
+  res.json({ ok: true });
+}));
+
 /* usuários */
 app.get('/api/users', needAdmin, wrap(async (req, res) => {
   res.json({ users: await store.listUsers() });
@@ -348,7 +373,7 @@ app.put('/api/users/:id', needAdmin, wrap(async (req, res) => {
     const salt = crypto.randomBytes(16).toString('hex');
     await store.setUserPassword(id, salt, hashPw(String(password), salt));
   }
-  if (!nextActive || password) await store.deleteSessionsOfUser(id);
+  if (!nextActive || password) await store.deleteSessionsOfUser(id, id === req.user.id && nextActive ? cookie(req, 'sid') : null);
   res.json({ ok: true });
 }));
 
@@ -361,7 +386,6 @@ app.use((err, req, res, next) => { // eslint-disable-line no-unused-vars
 
 async function main() {
   await store.init();
-  await seedBasics();
   await seedDemo();
   setInterval(() => store.purgeSessions(Date.now()).catch(() => {}), 3600 * 1000).unref();
   app.listen(PORT, '0.0.0.0', () => {

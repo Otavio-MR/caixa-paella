@@ -306,6 +306,22 @@ select.input { appearance: auto; }
 .auth-info { display: flex; flex-wrap: wrap; align-items: baseline; gap: 6px 20px; color: var(--muted); font-size: 17px; }
 .auth-info strong, .auth-info b { color: var(--text); font-size: 21px; font-weight: 700; }
 
+/* ticket da tela de login */
+.ticket-wrap { filter: drop-shadow(0 10px 16px rgb(0 0 0 / .45)); }
+.ticket {
+  --cut: 78px; background: var(--raised); border-radius: var(--r-lg);
+  -webkit-mask: radial-gradient(circle 10px at 0 var(--cut), #0000 96%, #000) left / 51% 100% no-repeat, radial-gradient(circle 10px at 100% var(--cut), #0000 96%, #000) right / 51% 100% no-repeat;
+  mask: radial-gradient(circle 10px at 0 var(--cut), #0000 96%, #000) left / 51% 100% no-repeat, radial-gradient(circle 10px at 100% var(--cut), #0000 96%, #000) right / 51% 100% no-repeat;
+}
+.tk-top { height: var(--cut); padding: 0 var(--s5); display: flex; flex-direction: column; justify-content: center; border-bottom: 2px dashed var(--line-strong); }
+.tk-top strong { font-size: 25px; font-weight: 700; line-height: 1.15; }
+.tk-top span { color: var(--muted); font-size: 16px; }
+.tk-counts { display: grid; grid-template-columns: 1fr 1fr; gap: var(--s3); padding: var(--s4) var(--s5) var(--s2); }
+.tk-counts b { display: block; font-size: 36px; font-weight: 700; line-height: 1.05; font-variant-numeric: tabular-nums; }
+.tk-counts span { color: var(--muted); font-size: 16px; }
+.tk-foot { margin: 0; padding: var(--s2) var(--s5) var(--s4); color: var(--muted); font-size: 16px; }
+.settings-grid > .full { grid-column: 1 / -1; }
+
 /* acesso */
 .auth { min-height: 100%; display: grid; grid-template-columns: minmax(0, 1.05fr) minmax(0, 1fr); }
 .auth-art { position: relative; isolation: isolate; display: grid; place-items: center; padding: var(--s6); background: var(--wine-deep); overflow: hidden; }
@@ -338,7 +354,6 @@ select.input { appearance: auto; }
 .auth-form form { display: flex; flex-direction: column; gap: var(--s4); }
 .auth-form h1 { font-weight: 700; letter-spacing: -.01em; font-size: 38px; line-height: 1.1; }
 .auth-form .btn.primary { min-height: 56px; font-size: 18px; }
-.auth-foot { color: var(--muted); font-size: 16px; border-top: 1px solid var(--line); padding-top: var(--s4); }
 
 /* diálogos e avisos */
 .scrim { position: fixed; inset: 0; background: rgb(10 4 3 / .72); display: grid; place-items: center; z-index: 50; padding: var(--s4); animation: fade .18s var(--ease); }
@@ -358,12 +373,15 @@ select.input { appearance: auto; }
 /* ao confirmar, o canhoto sai do painel */
 .slip.ghost { pointer-events: none; }
 
-@media (max-height: 700px) {
+@media (max-height: 900px) {
   .auth-wrap { gap: var(--s4); }
   .login-logo { width: 250px; }
   .auth-form { padding: var(--s5) var(--s7); }
   .auth-form h1 { font-size: 30px; }
   .auth-form form { gap: var(--s3); }
+  .auth-form form > .sub { display: none; }
+  .tk-counts b { font-size: 30px; }
+  .tk-counts { padding-top: var(--s3); }
 }
 @media (max-width: 1500px) {
   .tab kbd { display: none; }
@@ -438,4 +456,12 @@ select.input { appearance: auto; }
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation-duration: .01ms !important; transition-duration: .01ms !important; }
   .collage .ph, .collage .ph img, .collage .ph::after, .auth-art::before { animation: none !important; translate: none !important; }
+}
+
+@media (max-height: 700px) {
+  .auth-form h1, .tk-foot { display: none; }
+  .login-logo { width: 210px; }
+  .tk-top { --cut: 64px; height: 64px; }
+  .ticket { --cut: 64px; }
+  .tk-counts { padding-bottom: var(--s4); }
 }

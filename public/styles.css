@@ -44,7 +44,7 @@
   --muted: var(--cor-texto-secundario);
   --ok: var(--cor-sucesso);
   --danger: var(--cor-erro);
-  --warn: #A8580A;
+  --warn: #9A5107;
   --focus: var(--cor-foco);
 
   --font: "Public Sans", "Segoe UI", system-ui, sans-serif;
@@ -69,9 +69,9 @@ button, input, select { font: inherit; color: inherit; }
 button { cursor: pointer; touch-action: manipulation; }
 button:disabled { cursor: not-allowed; }
 ::selection { background: color-mix(in srgb, var(--accent) 45%, transparent); color: var(--text); }
-input { caret-color: var(--accent); }
+input { caret-color: var(--wine); }
 ::placeholder { color: #85676C; opacity: 1; }
-input[type="checkbox"], input[type="radio"] { accent-color: var(--accent); }
+input[type="checkbox"], input[type="radio"] { accent-color: var(--wine); }
 * { scrollbar-width: thin; scrollbar-color: var(--line-strong) transparent; }
 :focus-visible { outline: 3px solid var(--focus); outline-offset: 2px; }
 .num { font-variant-numeric: tabular-nums; }
@@ -123,6 +123,7 @@ main.bare { padding: 0; max-width: none; }
   box-shadow: 0 1px 2px rgba(53, 28, 36, .06);
   transition: background-color .12s var(--ease), border-color .12s var(--ease), transform .12s var(--ease), box-shadow .12s var(--ease);
 }
+.btn { text-decoration: none; }
 .btn:hover:not(:disabled) { background: var(--raised); border-color: var(--wine); transform: translateY(-1px); box-shadow: var(--sombra-suave); }
 .btn:active:not(:disabled) { transform: translateY(1px); box-shadow: none; }
 .btn:disabled { background: transparent; color: var(--muted); border: 1px dashed var(--line-strong); opacity: .8; box-shadow: none; }
@@ -464,6 +465,7 @@ select.input { appearance: auto; }
 @media (max-width: 640px) {
   .topbar, main { padding-left: var(--s4); padding-right: var(--s4); }
   .bw { display: none; }
+  .brand .logo-full { height: 38px; }
   .quick { grid-template-columns: repeat(3, 1fr); }
 }
 @media (prefers-reduced-motion: reduce) {

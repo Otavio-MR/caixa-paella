@@ -26,15 +26,15 @@ Uso em salões e quadras, às vezes com internet instável. O servidor roda em u
 
 - Perfis: administrador (produtos, equipe, vendas de todos, ajustes, CSV) e caixa (vende, reimprime, vê as próprias vendas do dia).
 - Formas de pagamento: dinheiro (com troco), Pix e cartão. Pix e cartão não integram gateway; só registram a forma.
-- Ajustes editáveis: nome do evento, "em prol de", edição, produto do contador da tela inicial, largura do papel (58 ou 80 mm) e altura do voucher. Cores e logo NÃO são editáveis pela interface; a identidade é fixa no sistema.
+- Ajustes editáveis: nome do evento, "em prol de", Loja anfitriã, edição, produto do contador da tela inicial, largura do papel (58 ou 80 mm) e altura do voucher. Cores e logo NÃO são editáveis pela interface; a identidade é fixa no sistema.
 - Estoque por produto (opcional, "sem limite" permitido): cada venda desconta do estoque de forma atômica e o sistema recusa vender além do que resta; o admin define, soma ou zera pela aba Estoque, e zera o contador de vendidos para uma nova edição.
 - Tela inicial: edição e contador de vendidas e disponíveis do produto em destaque no topo do Caixa; na tela de login aparecem só a edição e as disponíveis.
-- Banco: MongoDB Atlas online (com MONGODB_URI) ou SQLite local. Estorno de venda, backup e HTTPS próprio ainda não existem.
+- Banco: MongoDB Atlas online (com MONGODB_URI) ou SQLite local. O administrador baixa uma cópia de segurança (produtos, vendas e ajustes, sem senhas) em Ajustes. Restaurar a partir da cópia e HTTPS próprio ainda não existem.
 - Terminologia: caixa, voucher, venda, produto, equipe, troco.
 
 ## Brand Commitments
 
-Evento atual: Paella Mineira Solidária (o sistema serve a todas as edições, sem número de edição na interface), em prol do Hospital do Câncer de Londrina, organização Maçonaria do Paraná. Paleta aprovada pelo usuário: vinho escuro, laranja de destaque e creme, em tema escuro. Tom pedido: moderno, bonito e sério, profissional, sem cara de interface gerada por IA. Não usar emojis nem travessão em textos. Não copiar emblemas de instituições.
+Evento atual: Paella Mineira Solidária (o sistema serve a todas as edições, sem número de edição na interface), em prol do Hospital do Câncer de Londrina, organização Maçonaria do Paraná. Paleta oficial do logo da 7ª Paella: vinho #902539, laranja #E87717 e creme #FFF7EA, em tema claro, definida nas variáveis --cor-* de public/styles.css. O selo da Loja anfitriã (Augusta e Respeitável Loja Simbólica Renovação Londrinense) deve aparecer na entrada, no cabeçalho e no voucher. Tom pedido: moderno, bonito e sério, profissional, sem cara de interface gerada por IA. Não usar emojis nem travessão em textos. Não copiar emblemas de instituições.
 
 ## Evidence on Hand
 

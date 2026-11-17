@@ -63,6 +63,8 @@ const failToast = (e) => toast(e.message, 'error');
 
 /* ---------- voucher e impressão ---------- */
 const MARK_PB = '<img class="lg" src="/assets/mark/emblema-pb.png" alt="">';
+const LOGO_PB = '<img class="vlogo" src="/assets/mark/paella7-pb.png" alt="">';
+const DEFAULT_EVENT = 'Paella Mineira Solidária';
 
 function voucherHtml(sale, s) {
   const w = s.paperWidth, h = s.voucherHeight;
@@ -72,7 +74,7 @@ function voucherHtml(sale, s) {
     for (let k = 1; k <= it.qty; k++) {
       const len = it.name.length;
       const fs = len <= 9 ? 10 : len <= 16 ? 7.6 : len <= 26 ? 5.6 : 4.6;
-      pages.push(`<section class="v"><div class="vh">${MARK_PB}<div class="vt"><span class="ve">${esc(s.eventName)}</span></div></div><div class="n" style="font-size:${fs}mm">${esc(it.name)}</div><div class="bot"><b>${k}/${it.qty}</b><span>${esc(when)}</span><span>#${sale.n}</span></div>${s.beneficiary ? `<div class="ben">Em prol do ${esc(s.beneficiary)}</div>` : ''}</section>`);
+      pages.push(`<section class="v"><div class="vh">${s.eventName === DEFAULT_EVENT ? LOGO_PB : `${MARK_PB}<div class="vt"><span class="ve">${esc(s.eventName)}</span></div>`}</div><div class="n" style="font-size:${fs}mm">${esc(it.name)}</div><div class="bot"><b>${k}/${it.qty}</b><span>${esc(when)}</span><span>#${sale.n}</span></div>${s.beneficiary ? `<div class="ben">Em prol do ${esc(s.beneficiary)}</div>` : ''}${s.hostName ? `<div class="ben">Loja anfitriã: ${esc(s.hostName)}</div>` : ''}</section>`);
     }
   }
   return `<!doctype html><html><head><meta charset="utf-8"><style>
@@ -82,12 +84,13 @@ function voucherHtml(sale, s) {
 .v:last-child{page-break-after:auto;break-after:auto}
 .vh{display:flex;align-items:center;justify-content:center;gap:2mm;border-bottom:.4mm solid #000;padding-bottom:1mm}
 .lg{height:11mm;width:11mm;flex:none}
+.vlogo{height:9mm;width:auto;max-width:100%}
 .vt{display:flex;flex-direction:column;align-items:flex-start;line-height:1.05}
 .ve{font-weight:800;text-transform:uppercase;font-size:3.5mm;letter-spacing:0}
 .n{font-weight:800;text-transform:uppercase;line-height:1.02;flex:1;display:flex;align-items:center;justify-content:center;overflow-wrap:anywhere}
 .bot{display:flex;justify-content:space-between;align-items:baseline;font-size:3mm;border-top:.4mm dashed #000;padding-top:1mm;font-weight:600}
 .bot b{font-weight:800;font-size:4.6mm}
-.ben{font-size:2.5mm;padding-top:.8mm}
+.ben{font-size:2.3mm;line-height:1.15;padding-top:.6mm}
 </style></head><body>${pages.join('')}</body></html>`;
 }
 
@@ -172,10 +175,10 @@ function authScreen(setup, message) {
         <figure class="ph a"><img src="assets/photos/login-panela.webp?v=2" alt=""></figure>
         <figure class="ph b"><img src="assets/photos/login-marmita.webp?v=2" alt=""></figure>
       </div>
-      <div class="host">
+      ${brand.hostName ? `<div class="host">
         <img src="assets/mark/loja.png" alt="">
-        <p><span>Loja anfitriã</span>Augusta e Respeitável Loja Simbólica Renovação Londrinense</p>
-      </div>
+        <p><span>Loja anfitriã</span>${esc(brand.hostName)}</p>
+      </div>` : ''}
     </section>
     <section class="auth-form">
       <div class="auth-wrap">
@@ -318,6 +321,9 @@ function renderChrome() {
   $('#topbar').hidden = false;
   $('#view').className = '';
   $('#brand').innerHTML = `<img class="logo-full" src="assets/mark/paella7-horizontal.png" alt="${esc(brand.eventName || 'Caixa')}">`;
+  const seal = $('#host-seal');
+  seal.hidden = !brand.hostName;
+  seal.alt = seal.title = `Loja anfitriã: ${brand.hostName || ''}`;
   const tabs = [['caixa', 'Caixa', 'cart', 'F1'], ['vendas', isAdmin() ? 'Vendas' : 'Minhas vendas', 'receipt', 'F3']];
   if (isAdmin()) tabs.push(['produtos', 'Produtos', 'package', 'F4'], ['estoque', 'Estoque', 'arroz', ''], ['usuarios', 'Equipe', 'users', ''], ['config', 'Ajustes', 'sliders', '']);
   $('#tabs').innerHTML = tabs.map(([k, l, ic, key]) => `<button class="tab" data-view="${k}" ${view === k ? 'aria-current="page"' : ''}>${icon(ic)}<span>${l}</span>${key ? `<kbd>${key}</kbd>` : ''}</button>`).join('');
@@ -650,12 +656,13 @@ function renderConfig() {
         <div class="form">
           <div class="field"><label for="cn">Nome do evento</label><input class="input" id="cn" value="${esc(s.eventName)}" maxlength="50"></div>
           <div class="field"><label for="cb">Em prol de</label><input class="input" id="cb" value="${esc(s.beneficiary)}" maxlength="60"></div>
+          <div class="field"><label for="chn">Loja anfitriã</label><input class="input" id="chn" value="${esc(s.hostName || '')}" maxlength="90"></div>
         </div>
       </div></section>
       <section class="panel"><div class="pad form">
         <div><h2>Tela inicial</h2><p class="lead">A edição e o contador de vendidas e disponíveis aparecem no topo do Caixa. Na tela de login, um ticket mostra a edição e quantas já foram vendidas e quantas ainda há.</p></div>
         <div class="form">
-          <div class="field"><label for="ce">Edição</label><input class="input" id="ce" value="${esc(s.edition || '')}" maxlength="30" placeholder="Ex.: 6ª edição"></div>
+          <div class="field"><label for="ce">Edição</label><input class="input" id="ce" value="${esc(s.edition || '')}" maxlength="30" placeholder="Ex.: 7ª edição"></div>
           <div class="field"><label for="cfp">Produto do contador</label><select class="input" id="cfp"><option value="">Automático (a paella)</option>${db.products.map((p) => `<option value="${p.id}" ${s.featuredProductId === p.id ? 'selected' : ''}>${esc(p.name)}</option>`).join('')}</select></div>
         </div>
       </div></section>
@@ -670,14 +677,18 @@ function renderConfig() {
         <div><h2>Começar do zero</h2><p class="lead">Apaga todos os produtos, o estoque e todas as vendas, e a numeração dos vouchers volta para 1. Os usuários e as senhas ficam. Use depois de testar o sistema ou antes de um novo evento.</p></div>
         <div><button type="button" class="btn danger" id="wipe">${icon('trash')}Apagar produtos, estoque e vendas</button></div>
       </div></section>
+      <section class="panel full"><div class="pad form">
+        <div><h2>Cópia de segurança</h2><p class="lead">Baixe um arquivo com os produtos, as vendas e os ajustes. Guarde no seu computador antes e depois do evento. As senhas não entram na cópia.</p></div>
+        <div class="form-actions"><a class="btn" href="/api/backup" download>${icon('download')}Baixar cópia</a></div>
+      </div></section>
       <div class="err" id="cerr" role="alert"></div>
       <div class="form-actions"><button class="btn primary" type="submit">${icon('check')}Salvar ajustes</button><button class="btn" type="button" id="test">${icon('printer')}Imprimir voucher de teste</button></div>
     </form></div>`;
-  const read = () => ({ eventName: $('#cn').value, beneficiary: $('#cb').value, edition: $('#ce').value, featuredProductId: $('#cfp').value ? +$('#cfp').value : null, paperWidth: +$('#cw').value, voucherHeight: +$('#ch').value });
+  const read = () => ({ eventName: $('#cn').value, beneficiary: $('#cb').value, hostName: $('#chn').value, edition: $('#ce').value, featuredProductId: $('#cfp').value ? +$('#cfp').value : null, paperWidth: +$('#cw').value, voucherHeight: +$('#ch').value });
   const save = async () => {
     const r = await api('PUT', '/api/settings', read());
     db.settings = r.settings;
-    brand = { ...brand, eventName: r.settings.eventName, beneficiary: r.settings.beneficiary, edition: r.settings.edition };
+    brand = { ...brand, eventName: r.settings.eventName, beneficiary: r.settings.beneficiary, hostName: r.settings.hostName, edition: r.settings.edition };
     await refreshProducts();
     document.title = brand.eventName || 'Caixa';
     renderChrome();

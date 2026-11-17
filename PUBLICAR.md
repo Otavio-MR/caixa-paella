@@ -12,7 +12,7 @@ O projeto já está pronto para hospedar: tem `Dockerfile`, `render.yaml` e um m
    `mongodb+srv://USUARIO:SENHA@cluster0.xxxxx.mongodb.net/?retryWrites=true&w=majority`
    Troque `<password>` (ou `SENHA`) pela senha do passo 3.
 
-O plano gratuito tem 512 MB, o que é muito mais do que o necessário para vendas e vouchers. Ele não faz backup contínuo: exporte os dados antes de eventos importantes (Atlas, **Collections**, **Export**) e tire um registro por segurança. Clusters gratuitos podem ser pausados depois de muito tempo sem uso, e basta retomá-los no painel.
+O plano gratuito tem 512 MB, o que é muito mais do que o necessário para vendas e vouchers. Ele não faz backup contínuo: exporte os dados antes de eventos importantes (Atlas, **Collections**, **Export**) e baixe também a cópia pelo próprio sistema (**Ajustes**, **Baixar cópia**), que guarda produtos, vendas e ajustes em um arquivo, sem as senhas. Clusters gratuitos podem ser pausados depois de muito tempo sem uso, e basta retomá-los no painel.
 
 ## 2. Enviar o código para o GitHub
 

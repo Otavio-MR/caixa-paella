@@ -10,6 +10,7 @@ const store = createStore();
 const DEFAULT_SETTINGS = {
   eventName: 'Paella Mineira Solidária',
   beneficiary: 'Hospital do Câncer de Londrina',
+  hostName: 'Augusta e Respeitável Loja Simbólica Renovação Londrinense',
   edition: '7ª edição',
   featuredProductId: null,
   paperWidth: 80,
@@ -135,7 +136,7 @@ const cleanName = (v, max) => String(v || '').trim().slice(0, max);
 app.get('/api/me', wrap(async (req, res) => {
   const [users, settings, user, products] = await Promise.all([store.countUsers(), getSettings(), currentUser(req), store.listProducts()]);
   const f = featuredOf(products, settings);
-  res.json({ user, needsSetup: users === 0, brand: { eventName: settings.eventName, beneficiary: settings.beneficiary, edition: settings.edition, featured: f ? { name: f.name, available: f.stock, sold: f.sold } : null } });
+  res.json({ user, needsSetup: users === 0, brand: { eventName: settings.eventName, beneficiary: settings.beneficiary, hostName: settings.hostName, edition: settings.edition, featured: f ? { name: f.name, available: f.stock, sold: f.sold } : null } });
 }));
 
 app.post('/api/setup', wrap(async (req, res) => {
@@ -245,12 +246,21 @@ app.put('/api/settings', needAdmin, wrap(async (req, res) => {
   await store.saveSettings({
     eventName: cleanName(b.eventName, 50) || DEFAULT_SETTINGS.eventName,
     beneficiary: cleanName(b.beneficiary, 60),
+    hostName: cleanName(b.hostName, 90),
     edition: cleanName(b.edition, 30),
     featuredProductId: fp,
     paperWidth: +b.paperWidth === 58 ? 58 : 80,
     voucherHeight: Math.min(120, Math.max(20, Math.round(+b.voucherHeight) || 45)),
   });
   res.json({ settings: await getSettings() });
+}));
+
+/* cópia de segurança: produtos, vendas e ajustes em um arquivo (as senhas não entram) */
+app.get('/api/backup', needAdmin, wrap(async (req, res) => {
+  const [users, products, sales, settings] = await Promise.all([store.listUsers(), store.listProducts(), store.listSales({ limit: 10000 }), getSettings()]);
+  const now = new Date();
+  res.setHeader('Content-Disposition', `attachment; filename="caixa-copia-${now.toISOString().slice(0, 10)}.json"`);
+  res.json({ geradoEm: now.toISOString(), settings, users, products, sales });
 }));
 
 /* vendas */

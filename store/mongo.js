@@ -14,6 +14,8 @@ module.exports = function createMongoStore(uri, dbName) {
   const product = (d) => ({ id: d._id, name: d.name, price: d.price, color: d.color, active: !!d.active, photo: d.photo || '', stock: d.stock == null ? null : d.stock, sold: d.sold || 0 });
   const sale = (d) => d && { id: d._id, at: d.at, user_id: d.user_id, user_name: d.user_name, items: d.items, total: d.total, method: d.method, received: d.received, change: d.change, printed: !!d.printed };
 
+  const closing = (d) => d && { id: d._id, at: d.at, userId: d.user_id, userName: d.user_name, since: d.since || null, count: d.count, expected: d.expected, counted: d.counted, note: d.note || '' };
+
   return {
     kind: 'MongoDB Atlas',
 
@@ -24,6 +26,7 @@ module.exports = function createMongoStore(uri, dbName) {
       await col('sessions').createIndex({ expiresAt: 1 }, { expireAfterSeconds: 0 });
       await col('sales').createIndex({ at: -1 });
       await col('sales').createIndex({ user_id: 1, at: -1 });
+      await col('closings').createIndex({ user_id: 1, _id: -1 });
     },
 
     /* usuários */
@@ -136,6 +139,8 @@ module.exports = function createMongoStore(uri, dbName) {
     // apaga todas as vendas, volta a numeração para 1 e devolve os vendidos ao estoque
     async resetSales() {
       await col('sales').deleteMany({});
+      await col('closings').deleteMany({});
+      await col('counters').deleteMany({ _id: 'closings' });
       await col('counters').updateOne({ _id: 'sales' }, { $set: { seq: 0 } }, { upsert: true });
       await col('products').updateMany({}, [{ $set: {
         stock: { $cond: [{ $eq: [{ $ifNull: ['$stock', null] }, null] }, null, { $add: ['$stock', { $ifNull: ['$sold', 0] }] }] },
@@ -145,11 +150,26 @@ module.exports = function createMongoStore(uri, dbName) {
     // deixa o sistema como novo: sem produtos, estoque e vendas (os usuários ficam)
     async wipeData() {
       await col('sales').deleteMany({});
+      await col('closings').deleteMany({});
       await col('products').deleteMany({});
-      await col('counters').deleteMany({ _id: { $in: ['sales', 'products'] } });
+      await col('counters').deleteMany({ _id: { $in: ['sales', 'closings', 'products'] } });
       await col('settings').deleteOne({ _id: 'featuredProductId' });
     },
     async findSale(id) { const d = await col('sales').findOne({ _id: id }, { projection: { user_id: 1 } }); return d ? { id: d._id, user_id: d.user_id } : null; },
     async markPrinted(id) { await col('sales').updateOne({ _id: id }, { $set: { printed: true } }); },
+
+    /* fechamentos de caixa */
+    async insertClosing(c) {
+      const id = await nextId('closings');
+      const doc = { _id: id, at: c.at, user_id: c.user_id, user_name: c.user_name, since: c.since, count: c.count, expected: c.expected, counted: c.counted, note: c.note || '' };
+      await col('closings').insertOne(doc);
+      return closing(doc);
+    },
+    async lastClosing(userId) { return closing(await col('closings').findOne({ user_id: userId }, { sort: { _id: -1 } })); },
+    async listClosings({ userId, limit }) {
+      const q = userId != null ? { user_id: userId } : {};
+      const rows = await col('closings').find(q).sort({ _id: -1 }).limit(Math.max(1, Math.min(10000, limit | 0))).toArray();
+      return rows.map(closing);
+    },
   };
 };

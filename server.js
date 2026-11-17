@@ -97,12 +97,12 @@ async function seedDemo() {
   };
   await sale(185, caixa, caixaName, [[0, 2]], 'pix');
   await sale(170, caixa, caixaName, [[0, 1], [1, 1]], 'dinheiro', 10000);
-  await sale(150, admin, 'Administrador', [[0, 4]], 'cartao');
+  await sale(150, admin, 'Administrador', [[0, 4]], 'debito');
   await sale(132, caixa, caixaName, [[0, 3], [2, 3]], 'dinheiro', 30000);
   await sale(118, caixa, caixaName, [[0, 1]], 'pix');
   await sale(97, admin, 'Administrador', [[0, 2], [3, 2]], 'dinheiro', 20000);
   await sale(80, caixa, caixaName, [[0, 5]], 'pix');
-  await sale(64, caixa, caixaName, [[0, 1], [4, 2]], 'cartao');
+  await sale(64, caixa, caixaName, [[0, 1], [4, 2]], 'credito');
   await sale(41, admin, 'Administrador', [[0, 2]], 'dinheiro', 20000);
   await sale(25, caixa, caixaName, [[0, 3], [1, 2]], 'pix');
   await sale(12, caixa, caixaName, [[0, 1], [2, 1]], 'dinheiro', 10000);
@@ -257,14 +257,14 @@ app.put('/api/settings', needAdmin, wrap(async (req, res) => {
 
 /* cópia de segurança: produtos, vendas e ajustes em um arquivo (as senhas não entram) */
 app.get('/api/backup', needAdmin, wrap(async (req, res) => {
-  const [users, products, sales, settings] = await Promise.all([store.listUsers(), store.listProducts(), store.listSales({ limit: 10000 }), getSettings()]);
+  const [users, products, sales, closings, settings] = await Promise.all([store.listUsers(), store.listProducts(), store.listSales({ limit: 10000 }), store.listClosings({ limit: 10000 }), getSettings()]);
   const now = new Date();
   res.setHeader('Content-Disposition', `attachment; filename="caixa-copia-${now.toISOString().slice(0, 10)}.json"`);
-  res.json({ geradoEm: now.toISOString(), settings, users, products, sales });
+  res.json({ geradoEm: now.toISOString(), settings, users, products, sales, closings });
 }));
 
 /* vendas */
-const METHODS = ['dinheiro', 'pix', 'cartao'];
+const METHODS = ['dinheiro', 'pix', 'debito', 'credito'];
 const saleRow = (r) => ({ id: r.id, n: r.id, at: r.at, userName: r.user_name, userId: r.user_id, items: r.items, total: r.total, method: r.method, received: r.received, change: r.change, printed: !!r.printed });
 
 app.post('/api/sales', wrap(async (req, res) => {
@@ -322,6 +322,41 @@ app.post('/api/sales/:id/printed', wrap(async (req, res) => {
   if (!row || (req.user.role !== 'admin' && row.user_id !== req.user.id)) return bad(res, 'Venda não encontrada.', 404);
   await store.markPrinted(row.id);
   res.json({ ok: true });
+}));
+
+/* fechamento de caixa: cada pessoa fecha as próprias vendas desde o último fechamento dela */
+const PAY_KEYS = ['dinheiro', 'pix', 'debito', 'credito', 'cartao']; // 'cartao' só existe em vendas antigas
+const emptyTotals = () => Object.fromEntries(PAY_KEYS.map((k) => [k, 0]));
+async function openPeriod(user, until) {
+  const last = await store.lastClosing(user.id);
+  const since = last ? last.at : null;
+  const rows = (await store.listSales({ since: since || '', userId: user.id, limit: 10000 })).filter((s) => (!since || s.at > since) && s.at <= until);
+  const expected = emptyTotals();
+  for (const s of rows) expected[PAY_KEYS.includes(s.method) ? s.method : 'cartao'] += s.total;
+  return { since, until, count: rows.length, expected, total: rows.reduce((a, s) => a + s.total, 0), firstAt: rows.length ? rows[rows.length - 1].at : null };
+}
+
+app.get('/api/closing/preview', wrap(async (req, res) => {
+  res.json({ period: await openPeriod(req.user, new Date().toISOString()) });
+}));
+
+app.post('/api/closing', wrap(async (req, res) => {
+  const per = await openPeriod(req.user, new Date().toISOString());
+  if (!per.count) return bad(res, 'Não há vendas para fechar desde o último fechamento.');
+  const given = (req.body || {}).counted || {};
+  const counted = emptyTotals();
+  for (const k of PAY_KEYS) {
+    const v = Math.round(+given[k] || 0);
+    if (!(v >= 0 && v <= 100000000)) return bad(res, 'Valor conferido inválido.');
+    counted[k] = v;
+  }
+  const row = await store.insertClosing({ at: per.until, user_id: req.user.id, user_name: req.user.name, since: per.since, count: per.count, expected: per.expected, counted, note: cleanName((req.body || {}).note, 200) });
+  res.json({ closing: row });
+}));
+
+app.get('/api/closings', wrap(async (req, res) => {
+  const rows = await store.listClosings({ userId: req.user.role === 'admin' ? null : req.user.id, limit: 200 });
+  res.json({ closings: rows });
 }));
 
 /* apagar vendas e recomeçar */

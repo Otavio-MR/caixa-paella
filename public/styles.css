@@ -229,8 +229,8 @@ select.input { appearance: auto; }
 .total { display: flex; align-items: baseline; justify-content: space-between; gap: var(--s3); padding-top: var(--s3); border-top: 2px solid var(--line-strong); }
 .total span { font-weight: 600; color: var(--muted); }
 .total strong { color: var(--wine); font-size: clamp(40px, 3.6vw, 50px); font-weight: 700; line-height: 1; letter-spacing: -.01em; font-variant-numeric: tabular-nums; white-space: nowrap; }
-.seg { display: grid; grid-template-columns: repeat(3, 1fr); gap: var(--s2); }
-.seg button { min-height: 52px; border-radius: var(--r); background: transparent; border: 1px solid var(--line-strong); display: flex; align-items: center; justify-content: center; gap: var(--s2); font-weight: 600; transition: background-color .12s var(--ease), border-color .12s var(--ease); }
+.seg { display: grid; grid-template-columns: repeat(4, 1fr); gap: var(--s2); }
+.seg button { min-height: 62px; padding: 6px 2px; border-radius: var(--r); background: transparent; border: 1px solid var(--line-strong); display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; font-size: 15px; font-weight: 600; transition: background-color .12s var(--ease), border-color .12s var(--ease); }
 .seg button:hover { background: var(--raised); }
 .seg button[aria-pressed="true"] { background: var(--raised); border: 2px solid var(--wine); font-weight: 700; }
 .seg button[aria-pressed="true"] svg.i { --duo: .3; }
@@ -396,11 +396,17 @@ select.input { appearance: auto; }
   .tk-counts b { font-size: 30px; }
   .tk-counts { padding-top: var(--s3); }
 }
+@media (max-width: 1600px) {
+  .status .st-text { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+  .who .nm { max-width: 110px; }
+}
 @media (max-width: 1500px) {
   .tab kbd { display: none; }
-  .topbar { gap: var(--s4); }
+  .topbar { gap: var(--s3); }
   .bt { font-size: 20px; }
-  .tab { padding: 0 var(--s3); }
+  .tab { padding: 0 9px; gap: 6px; }
+  .brand .logo-full { height: 52px; }
+  .host-seal { width: 40px; height: 40px; }
   .who .nm { max-width: 160px; }
 }
 @media (max-width: 1380px) {
@@ -481,3 +487,13 @@ select.input { appearance: auto; }
 }
 
 @media (max-width: 1100px) { .host-seal { display: none; } }
+
+/* fechamento de caixa */
+.input.close { width: 150px; min-height: 44px; text-align: right; font-variant-numeric: tabular-nums; }
+.diff { font-weight: 700; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.diff.ok { color: var(--ok); }
+.diff.low { color: var(--danger); }
+.tbl tfoot th { border-top: 2px solid var(--line-strong); border-bottom: 0; color: var(--text); font-size: 17px; font-weight: 700; }
+.summary dd.sm { font-size: 20px; line-height: 1.4; }
+.sec { font-size: 20px; font-weight: 700; margin-bottom: var(--s3); }
+.modal .tbl th, .modal .tbl td { padding: var(--s2) var(--s3); }

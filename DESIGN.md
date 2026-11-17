@@ -93,10 +93,11 @@ Cantos de 8px em controles, 12px em painéis, blocos, canhoto e fotos, 4px em se
 - **Campos:** fundo branco, borda `--cor-borda`, 52px; foco com contorno de 2px em vinho.
 - **Cabeçalho:** logo horizontal, abas com ícone e rótulo, aba ativa em vinho com sublinhado laranja, selo da loja, estado da impressora, nome e Sair.
 - **Bloco de produto:** fundo Superfície, imagem de 108px, nome, ponto de cor, preço e estoque. Selecionado: borda vinho.
-- **Canhoto do pedido:** Superfície com recortes serrilhados, total em vinho, forma de pagamento em três botões e faixa de troco.
+- **Canhoto do pedido:** Superfície com recortes serrilhados, total em vinho, forma de pagamento em quatro botões (Dinheiro, Pix, Débito e Crédito, com o ícone sobre o rótulo) e faixa de troco.
 - **Ticket da entrada:** cabeçalho em areia com a edição, picote tracejado com dois recortes, e vendidas e disponíveis em vinho sobre branco.
 - **Entrada:** metade esquerda em areia com duas fotos e, abaixo, a Loja anfitriã; à direita o logo, o formulário e o ticket.
 - **Tabelas e resumo:** tabela real com cabeçalho secundário, números à direita e valores do resumo em vinho.
+- **Fechamento:** aba para todos os perfis. Resumo do período, tabela com esperado, campo de valor conferido e diferença (verde quando confere, vermelha quando não), total, observação e botão de fechar com confirmação. Abaixo, o histórico. O resumo impresso usa o mesmo papel do voucher.
 - **Ajustes:** nome do evento, em prol de, Loja anfitriã, edição, produto do contador, papel e voucher, recomeço do zero e cópia de segurança.
 - **Voucher térmico:** preto sobre branco, na largura do papel (58 ou 80mm). Com o nome de evento padrão, usa o logo horizontal em preto e branco; com outro nome, usa o emblema e o nome do evento. Rodapé com "k/n", data, número, "Em prol do ..." e "Loja anfitriã: ...".
 

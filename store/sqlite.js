@@ -11,6 +11,8 @@ module.exports = function createSqliteStore(dataDir) {
   const product = (p) => ({ id: p.id, name: p.name, price: p.price, color: p.color, active: !!p.active, photo: p.photo || '', stock: p.stock == null ? null : p.stock, sold: p.sold || 0 });
   const sale = (r) => r && { id: r.id, at: r.at, user_id: r.user_id, user_name: r.user_name, items: JSON.parse(r.items), total: r.total, method: r.method, received: r.received, change: r.change, printed: !!r.printed };
 
+  const closing = (r) => r && { id: r.id, at: r.at, userId: r.user_id, userName: r.user_name, since: r.since || null, count: r.sales_count, expected: JSON.parse(r.expected), counted: JSON.parse(r.counted), note: r.note || '' };
+
   return {
     kind: 'SQLite local',
 
@@ -22,6 +24,7 @@ CREATE TABLE IF NOT EXISTS sessions(token TEXT PRIMARY KEY, user_id INTEGER NOT 
 CREATE TABLE IF NOT EXISTS products(id INTEGER PRIMARY KEY, name TEXT NOT NULL, price INTEGER NOT NULL, color TEXT NOT NULL, active INTEGER NOT NULL DEFAULT 1, photo TEXT NOT NULL DEFAULT '', stock INTEGER, sold INTEGER NOT NULL DEFAULT 0);
 CREATE TABLE IF NOT EXISTS sales(id INTEGER PRIMARY KEY AUTOINCREMENT, at TEXT NOT NULL, user_id INTEGER NOT NULL, user_name TEXT NOT NULL, items TEXT NOT NULL, total INTEGER NOT NULL, method TEXT NOT NULL, received INTEGER NOT NULL, change INTEGER NOT NULL, printed INTEGER NOT NULL DEFAULT 0);
 CREATE TABLE IF NOT EXISTS settings(key TEXT PRIMARY KEY, value TEXT NOT NULL);
+CREATE TABLE IF NOT EXISTS closings(id INTEGER PRIMARY KEY AUTOINCREMENT, at TEXT NOT NULL, user_id INTEGER NOT NULL, user_name TEXT NOT NULL, since TEXT, sales_count INTEGER NOT NULL, expected TEXT NOT NULL, counted TEXT NOT NULL, note TEXT NOT NULL DEFAULT '');
 `);
       try { db.exec("ALTER TABLE products ADD COLUMN photo TEXT NOT NULL DEFAULT ''"); } catch { /* coluna já existe */ }
       try { db.exec('ALTER TABLE products ADD COLUMN stock INTEGER'); } catch { /* coluna já existe */ }
@@ -117,7 +120,7 @@ CREATE TABLE IF NOT EXISTS settings(key TEXT PRIMARY KEY, value TEXT NOT NULL);
     async resetSales() {
       db.exec('BEGIN IMMEDIATE');
       try {
-        db.exec("DELETE FROM sales; DELETE FROM sqlite_sequence WHERE name = 'sales';");
+        db.exec("DELETE FROM sales; DELETE FROM closings; DELETE FROM sqlite_sequence WHERE name IN ('sales', 'closings');");
         db.exec('UPDATE products SET stock = CASE WHEN stock IS NULL THEN NULL ELSE stock + sold END, sold = 0');
         db.exec('COMMIT');
       } catch (e) { try { db.exec('ROLLBACK'); } catch { /* já desfeito */ } throw e; }
@@ -126,11 +129,23 @@ CREATE TABLE IF NOT EXISTS settings(key TEXT PRIMARY KEY, value TEXT NOT NULL);
     async wipeData() {
       db.exec('BEGIN IMMEDIATE');
       try {
-        db.exec("DELETE FROM sales; DELETE FROM products; DELETE FROM sqlite_sequence WHERE name IN ('sales', 'products'); DELETE FROM settings WHERE key = 'featuredProductId';");
+        db.exec("DELETE FROM sales; DELETE FROM closings; DELETE FROM products; DELETE FROM sqlite_sequence WHERE name IN ('sales', 'closings', 'products'); DELETE FROM settings WHERE key = 'featuredProductId';");
         db.exec('COMMIT');
       } catch (e) { try { db.exec('ROLLBACK'); } catch { /* já desfeito */ } throw e; }
     },
     async findSale(id) { const r = db.prepare('SELECT id, user_id FROM sales WHERE id = ?').get(id); return r || null; },
     async markPrinted(id) { db.prepare('UPDATE sales SET printed = 1 WHERE id = ?').run(id); },
+
+    /* fechamentos de caixa */
+    async insertClosing(c) {
+      const r = db.prepare('INSERT INTO closings(at, user_id, user_name, since, sales_count, expected, counted, note) VALUES (?, ?, ?, ?, ?, ?, ?, ?)')
+        .run(c.at, c.user_id, c.user_name, c.since, c.count, JSON.stringify(c.expected), JSON.stringify(c.counted), c.note || '');
+      return closing(db.prepare('SELECT * FROM closings WHERE id = ?').get(Number(r.lastInsertRowid)));
+    },
+    async lastClosing(userId) { return closing(db.prepare('SELECT * FROM closings WHERE user_id = ? ORDER BY id DESC LIMIT 1').get(userId)); },
+    async listClosings({ userId, limit }) {
+      const sql = `SELECT * FROM closings ${userId != null ? 'WHERE user_id = ?' : ''} ORDER BY id DESC LIMIT ${Math.max(1, Math.min(10000, limit | 0))}`;
+      return (userId != null ? db.prepare(sql).all(userId) : db.prepare(sql).all()).map(closing);
+    },
   };
 };

@@ -25,7 +25,8 @@ Uso em salões e quadras, às vezes com internet instável. O servidor roda em u
 ## Capabilities and Constraints
 
 - Perfis: administrador (produtos, equipe, vendas de todos, ajustes, CSV) e caixa (vende, reimprime, vê as próprias vendas do dia).
-- Formas de pagamento: dinheiro (com troco), Pix e cartão. Pix e cartão não integram gateway; só registram a forma.
+- Formas de pagamento: dinheiro (com troco), Pix, débito e crédito. Pix, débito e crédito não integram gateway; só registram a forma. Vendas feitas antes da separação aparecem como "Cartão (antigo)".
+- Fechamento de caixa: a aba Fechamento, para todos os perfis, mostra o esperado em cada forma de pagamento desde o último fechamento de quem está logado. A pessoa digita o valor conferido de cada uma, vê a diferença na hora, confirma e o sistema registra o fechamento (quem, quando, esperado, conferido e observação) e imprime o resumo. Cada caixa fecha só as próprias vendas; o administrador vê o histórico de todos. Apagar todas as vendas ou deixar o sistema como novo também apaga os fechamentos.
 - Ajustes editáveis: nome do evento, "em prol de", Loja anfitriã, edição, produto do contador da tela inicial, largura do papel (58 ou 80 mm) e altura do voucher. Cores e logo NÃO são editáveis pela interface; a identidade é fixa no sistema.
 - Estoque por produto (opcional, "sem limite" permitido): cada venda desconta do estoque de forma atômica e o sistema recusa vender além do que resta; o admin define, soma ou zera pela aba Estoque, e zera o contador de vendidos para uma nova edição.
 - Tela inicial: edição e contador de vendidas e disponíveis do produto em destaque no topo do Caixa; na tela de login aparecem só a edição e as disponíveis.

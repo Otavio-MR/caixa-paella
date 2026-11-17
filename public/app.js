@@ -1,7 +1,7 @@
 'use strict';
 
 /* ---------- ícones: sprite autoral embutido na página ---------- */
-const KIT = { cart: 'caixa', package: 'produtos', receipt: 'vendas', sliders: 'ajustes', users: 'equipe', printer: 'impressora', plus: 'mais', minus: 'menos', search: 'busca', trash: 'excluir', check: 'check', cash: 'dinheiro', qr: 'pix', card: 'cartao', pencil: 'editar', download: 'download', alert: 'alerta', logout: 'sair' };
+const KIT = { lock: 'cadeado', cart: 'caixa', package: 'produtos', receipt: 'vendas', sliders: 'ajustes', users: 'equipe', printer: 'impressora', plus: 'mais', minus: 'menos', search: 'busca', trash: 'excluir', check: 'check', cash: 'dinheiro', qr: 'pix', card: 'cartao', pencil: 'editar', download: 'download', alert: 'alerta', logout: 'sair' };
 const icon = (n) => `<svg class="i" viewBox="0 0 32 32" aria-hidden="true" focusable="false"><use href="#i-${KIT[n] || n}"/></svg>`;
 
 async function loadSprite() {
@@ -30,7 +30,9 @@ function parseMoney(str) {
 const moneyInput = (cents) => (cents / 100).toFixed(2).replace('.', ',');
 const COLORS = ['#E87717', '#902539', '#B4482B', '#F2A33A', '#C26A7A', '#CDAE8A', '#5C1626'];
 const COLOR_NAMES = { '#E87717': 'Laranja', '#902539': 'Vinho', '#B4482B': 'Tijolo', '#F2A33A': 'Âmbar', '#C26A7A': 'Rosé', '#CDAE8A': 'Areia', '#5C1626': 'Vinho escuro', '#E8833A': 'Laranja', '#F2B35E': 'Âmbar', '#D8573F': 'Tijolo', '#8EB36B': 'Verde', '#5FA8A0': 'Azul esverdeado', '#C98BB5': 'Rosé', '#B79A7A': 'Areia' };
-const METHODS = { dinheiro: ['Dinheiro', 'cash'], pix: ['Pix', 'qr'], cartao: ['Cartão', 'card'] };
+const METHODS = { dinheiro: ['Dinheiro', 'cash'], pix: ['Pix', 'qr'], debito: ['Débito', 'card'], credito: ['Crédito', 'card'] };
+const methodLabel = (k) => (k === 'cartao' ? 'Cartão (antigo)' : (METHODS[k] || [k])[0]); // 'cartao' só aparece em vendas feitas antes de separar débito e crédito
+let closedList = [];
 const fmtDate = (iso) => new Date(iso).toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' });
 const startOfToday = () => { const d = new Date(); d.setHours(0, 0, 0, 0); return d.toISOString(); };
 // ícone padrão do produto, escolhido pelo nome
@@ -324,7 +326,7 @@ function renderChrome() {
   const seal = $('#host-seal');
   seal.hidden = !brand.hostName;
   seal.alt = seal.title = `Loja anfitriã: ${brand.hostName || ''}`;
-  const tabs = [['caixa', 'Caixa', 'cart', 'F1'], ['vendas', isAdmin() ? 'Vendas' : 'Minhas vendas', 'receipt', 'F3']];
+  const tabs = [['caixa', 'Caixa', 'cart', 'F1'], ['vendas', isAdmin() ? 'Vendas' : 'Minhas vendas', 'receipt', 'F3'], ['fechamento', 'Fechamento', 'lock', '']];
   if (isAdmin()) tabs.push(['produtos', 'Produtos', 'package', 'F4'], ['estoque', 'Estoque', 'arroz', ''], ['usuarios', 'Equipe', 'users', ''], ['config', 'Ajustes', 'sliders', '']);
   $('#tabs').innerHTML = tabs.map(([k, l, ic, key]) => `<button class="tab" data-view="${k}" ${view === k ? 'aria-current="page"' : ''}>${icon(ic)}<span>${l}</span>${key ? `<kbd>${key}</kbd>` : ''}</button>`).join('');
   $('#who').textContent = me.name;
@@ -340,7 +342,7 @@ function renderStatus() {
 function go(v) {
   view = v;
   renderChrome();
-  ({ caixa: () => renderCaixa(true), produtos: renderProdutos, estoque: renderEstoque, vendas: renderVendas, usuarios: renderUsuarios, config: renderConfig })[v]();
+  ({ caixa: () => renderCaixa(true), produtos: renderProdutos, estoque: renderEstoque, vendas: renderVendas, fechamento: renderFechamento, usuarios: renderUsuarios, config: renderConfig })[v]();
 }
 
 /* ---------- caixa ---------- */
@@ -552,26 +554,149 @@ async function renderVendas() {
       <button class="btn danger" id="resetsales">${icon('trash')}Apagar todas as vendas</button>` : ''}</div></div>
     <dl class="summary"><div><dt>Faturamento</dt><dd>${brl(sum(list))}</dd></div><div><dt>Vendas</dt><dd>${list.length}</dd></div><div><dt>Vouchers emitidos</dt><dd>${units}</dd></div></dl>
     ${list.length ? `<div class="breakdown">
-      <div><h2>Por forma de pagamento</h2><ul>${Object.entries(METHODS).map(([k, [l]]) => li(l, brl(sum(list.filter((s) => s.method === k))))).join('')}</ul></div>
+      <div><h2>Por forma de pagamento</h2><ul>${[...Object.keys(METHODS), ...(list.some((s) => s.method === 'cartao') ? ['cartao'] : [])].map((k) => li(methodLabel(k), brl(sum(list.filter((s) => s.method === k))))).join('')}</ul></div>
       <div><h2>Por produto</h2><ul>${Object.entries(byProd).map(([n, q]) => li(esc(n), q + ' un.')).join('')}</ul></div>
       ${isAdmin() ? `<div><h2>Por caixa</h2><ul>${Object.entries(byUser).map(([n, v]) => li(esc(n), brl(v))).join('')}</ul></div>` : ''}</div>` : ''}
     <div class="panel">${list.length ? `<div class="tbl-wrap"><table class="tbl"><thead><tr><th>Venda</th><th>Data e hora</th>${isAdmin() ? '<th>Caixa</th>' : ''}<th>Itens</th><th>Pagamento</th><th class="r">Total</th><th><span class="sr-only">Ações</span></th></tr></thead><tbody>${list.map((s) => `<tr>
       <td class="strong">${s.n}</td><td class="nw">${fmtDate(s.at)}</td>${isAdmin() ? `<td class="nw">${esc(s.userName)}</td>` : ''}
       <td>${s.items.map((i) => `${i.qty}× ${esc(i.name)}`).join(', ')}</td>
-      <td class="nw">${METHODS[s.method][0]}</td><td class="r strong">${brl(s.total)}</td>
+      <td class="nw">${methodLabel(s.method)}</td><td class="r strong">${brl(s.total)}</td>
       <td class="act">${s.printed ? '' : '<span class="badge warn">Não impresso</span> '}<button class="btn sm" data-reprint="${s.id}">${icon('printer')}Reimprimir</button>${isAdmin() ? ` <button class="btn sm danger" data-delsale="${s.id}" aria-label="Excluir venda ${s.n}">${icon('trash')}Excluir</button>` : ''}</td></tr>`).join('')}</tbody></table></div>`
     : `<div class="pad">${emptyState('Nenhuma venda ' + scope + ' ainda', 'As vendas confirmadas aparecem aqui.')}</div>`}</div></div>`;
 }
 
 function exportCsv() {
   const rows = [['Venda', 'Data', 'Caixa', 'Pagamento', 'Itens', 'Total']];
-  loadedSales.forEach((s) => rows.push([s.n, new Date(s.at).toLocaleString('pt-BR'), s.userName, METHODS[s.method][0], s.items.map((i) => `${i.qty}x ${i.name}`).join(' | '), (s.total / 100).toFixed(2).replace('.', ',')]));
+  loadedSales.forEach((s) => rows.push([s.n, new Date(s.at).toLocaleString('pt-BR'), s.userName, methodLabel(s.method), s.items.map((i) => `${i.qty}x ${i.name}`).join(' | '), (s.total / 100).toFixed(2).replace('.', ',')]));
   const csv = '﻿' + rows.map((r) => r.map((c) => `"${String(c).replace(/"/g, '""')}"`).join(';')).join('\r\n');
   const a = document.createElement('a');
   a.href = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8' }));
   a.download = `vendas-${new Date().toISOString().slice(0, 10)}.csv`;
   a.click();
   URL.revokeObjectURL(a.href);
+}
+
+
+/* ---------- fechamento de caixa ---------- */
+const CLOSE_KEYS = ['dinheiro', 'pix', 'debito', 'credito', 'cartao'];
+const sumKeys = (o) => CLOSE_KEYS.reduce((a, k) => a + (o[k] || 0), 0);
+const signed = (c) => (c > 0 ? '+' : '') + brl(c);
+let closingPeriod = null;
+
+function closingHtml(c, s) {
+  const w = s.paperWidth;
+  const keys = CLOSE_KEYS.filter((k) => k !== 'cartao' || c.expected.cartao || c.counted.cartao);
+  const block = (k) => {
+    const d = (c.counted[k] || 0) - (c.expected[k] || 0);
+    return `<div class="m"><b>${esc(methodLabel(k))}</b><div><span>Esperado</span><span>${brl(c.expected[k] || 0)}</span></div><div><span>Conferido</span><span>${brl(c.counted[k] || 0)}</span></div><div><span>Diferença</span><b>${d === 0 ? 'confere' : signed(d)}</b></div></div>`;
+  };
+  const te = sumKeys(c.expected); const tc = sumKeys(c.counted); const td = tc - te;
+  return `<!doctype html><html><head><meta charset="utf-8"><style>
+@font-face{font-family:'Public Sans';src:url(/assets/fonts/PublicSans.ttf) format("truetype");font-weight:100 900}
+@page{size:${w}mm auto;margin:0}*{box-sizing:border-box}html,body{margin:0;padding:0;background:#fff;color:#000;font-family:'Public Sans',Arial,Helvetica,sans-serif}
+body{width:${w}mm;padding:3mm;font-size:3.3mm;line-height:1.3}
+h1{font-size:4.6mm;font-weight:800;margin:0 0 1mm}.t{font-weight:700}.s{border-top:.3mm dashed #000;margin:2mm 0}
+.m>b{display:block;font-size:3.6mm;font-weight:800;text-transform:uppercase;margin-top:1.5mm}.m div,.tot div{display:flex;justify-content:space-between;gap:3mm}
+.tot{font-weight:800;font-size:3.6mm}.tot b{font-weight:800}.note{margin-top:1.5mm;font-size:3mm}
+</style></head><body>
+<h1>Fechamento do caixa</h1>
+<div>${esc(s.eventName)}</div>
+<div class="t">Caixa: ${esc(c.userName)}</div>
+<div>Período: ${c.since ? esc(fmtDate(c.since)) : 'primeira venda'} até ${esc(fmtDate(c.at))}</div>
+<div>Vendas: ${c.count}</div>
+<div class="s"></div>
+${keys.map(block).join('<div class="s"></div>')}
+<div class="s"></div>
+<div class="tot"><div><span>Total esperado</span><span>${brl(te)}</span></div><div><span>Total conferido</span><span>${brl(tc)}</span></div><div><span>Diferença</span><b>${td === 0 ? 'confere' : signed(td)}</b></div></div>
+${c.note ? `<div class="note">Obs.: ${esc(c.note)}</div>` : ''}
+<div class="s"></div>
+<div class="note">Fechado em ${esc(fmtDate(c.at))}. Assinatura: ______________________</div>
+</body></html>`;
+}
+
+function showClosing(c) {
+  const te = sumKeys(c.expected); const tc = sumKeys(c.counted); const td = tc - te;
+  const keys = CLOSE_KEYS.filter((k) => k !== 'cartao' || c.expected.cartao || c.counted.cartao);
+  modal(`<h2>Fechamento do caixa</h2>
+    <p>${esc(c.userName)} · ${c.since ? fmtDate(c.since) : 'primeira venda'} até ${fmtDate(c.at)} · ${c.count} ${c.count === 1 ? 'venda' : 'vendas'}</p>
+    <div class="tbl-wrap"><table class="tbl"><thead><tr><th>Forma</th><th class="r">Esperado</th><th class="r">Conferido</th><th class="r">Diferença</th></tr></thead><tbody>
+      ${keys.map((k) => { const d = (c.counted[k] || 0) - (c.expected[k] || 0); return `<tr><td class="strong">${esc(methodLabel(k))}</td><td class="r">${brl(c.expected[k] || 0)}</td><td class="r">${brl(c.counted[k] || 0)}</td><td class="r diff ${d === 0 ? 'ok' : 'low'}">${d === 0 ? 'Confere' : signed(d)}</td></tr>`; }).join('')}
+    </tbody><tfoot><tr><th>Total</th><th class="r">${brl(te)}</th><th class="r">${brl(tc)}</th><th class="r diff ${td === 0 ? 'ok' : 'low'}">${td === 0 ? 'Confere' : signed(td)}</th></tr></tfoot></table></div>
+    ${c.note ? `<p>Observação: ${esc(c.note)}</p>` : ''}
+    <div class="actions"><button class="btn" data-close>Fechar</button><button class="btn primary" id="printclosing" autofocus>${icon('printer')}Imprimir</button></div>`,
+  (r) => { r.querySelector('#printclosing').onclick = async () => { const res = await printHtml(closingHtml(c, db.settings)); if (!res.ok) toast('Não foi possível imprimir.', 'error'); }; });
+}
+
+async function renderFechamento() {
+  $('#view').innerHTML = `<div class="page compact"><div class="empty"><p>Carregando o fechamento</p></div></div>`;
+  let per; let hist;
+  try {
+    [per, hist] = await Promise.all([api('GET', '/api/closing/preview'), api('GET', '/api/closings')]);
+    per = per.period; hist = hist.closings;
+  } catch (e) { failToast(e); return ($('#view').innerHTML = `<div class="page compact"><div class="panel"><div class="pad">${emptyState('Não foi possível carregar o fechamento', esc(e.message), '<button class="btn primary" data-retry>Tentar de novo</button>')}</div></div></div>`); }
+  if (view !== 'fechamento') return;
+  closingPeriod = per;
+  closedList = hist;
+  const keys = CLOSE_KEYS.filter((k) => k !== 'cartao' || per.expected.cartao);
+  $('#view').innerHTML = `<div class="page compact">
+    <div class="page-head"><h1>Fechamento do caixa</h1></div>
+    ${per.count ? `<form id="closeform" class="form" novalidate>
+      <p class="sub">Suas vendas desde o último fechamento. Conte o que há de cada forma de pagamento, digite nos campos e confira a diferença.</p>
+      <dl class="summary"><div><dt>Período</dt><dd class="sm">${per.since ? fmtDate(per.since) : 'Desde a primeira venda'}</dd></div><div><dt>Vendas</dt><dd>${per.count}</dd></div><div><dt>Total esperado</dt><dd>${brl(per.total)}</dd></div></dl>
+      <div class="panel"><div class="tbl-wrap"><table class="tbl"><thead><tr><th>Forma</th><th class="r">Esperado</th><th class="r">Conferido</th><th class="r">Diferença</th></tr></thead><tbody>
+        ${keys.map((k) => `<tr><td class="strong">${esc(methodLabel(k))}</td><td class="r">${brl(per.expected[k])}</td><td class="r"><input class="input close" data-count="${k}" inputmode="decimal" autocomplete="off" placeholder="0,00" aria-label="Conferido em ${esc(methodLabel(k))}"></td><td class="r diff" data-diff="${k}">—</td></tr>`).join('')}
+      </tbody><tfoot><tr><th>Total</th><th class="r">${brl(per.total)}</th><th class="r" id="ctot">—</th><th class="r diff" id="cdiff">—</th></tr></tfoot></table></div></div>
+      <div class="field"><label for="cnote">Observação (opcional)</label><input class="input" id="cnote" maxlength="200" autocomplete="off"></div>
+      <div class="err" id="cerr" role="alert"></div>
+      <div class="form-actions"><button class="btn primary" type="submit">${icon('lock')}Fechar o caixa</button></div>
+    </form>` : `<div class="panel"><div class="pad">${emptyState('Nada para fechar', 'Não há vendas suas desde o último fechamento.')}</div></div>`}
+    <div><h2 class="sec">Fechamentos anteriores</h2>
+    <div class="panel">${hist.length ? `<div class="tbl-wrap"><table class="tbl"><thead><tr><th>Data</th>${isAdmin() ? '<th>Caixa</th>' : ''}<th class="r">Vendas</th><th class="r">Esperado</th><th class="r">Conferido</th><th class="r">Diferença</th><th><span class="sr-only">Ações</span></th></tr></thead><tbody>${hist.map((c) => {
+      const te = sumKeys(c.expected); const tc = sumKeys(c.counted); const d = tc - te;
+      return `<tr><td class="nw">${fmtDate(c.at)}</td>${isAdmin() ? `<td class="nw">${esc(c.userName)}</td>` : ''}<td class="r">${c.count}</td><td class="r">${brl(te)}</td><td class="r">${brl(tc)}</td><td class="r diff ${d === 0 ? 'ok' : 'low'}">${d === 0 ? 'Confere' : signed(d)}</td><td class="act"><button class="btn sm" data-closing="${c.id}">${icon('receipt')}Ver</button></td></tr>`;
+    }).join('')}</tbody></table></div>` : `<div class="pad">${emptyState('Nenhum fechamento ainda', 'Os fechamentos feitos aparecem aqui.')}</div>`}</div></div>
+  </div>`;
+}
+
+function updateClosingDiffs() {
+  if (!closingPeriod) return;
+  let filled = 0; let tc = 0; let all = true;
+  document.querySelectorAll('[data-count]').forEach((inp) => {
+    const k = inp.dataset.count;
+    const cell = document.querySelector(`[data-diff="${k}"]`);
+    if (inp.value.trim() === '') { cell.textContent = '—'; cell.className = 'r diff'; if (closingPeriod.expected[k] > 0) all = false; return; }
+    const v = parseMoney(inp.value); const d = v - closingPeriod.expected[k];
+    filled += 1; tc += v;
+    cell.textContent = d === 0 ? 'Confere' : signed(d);
+    cell.className = 'r diff ' + (d === 0 ? 'ok' : 'low');
+  });
+  const ct = $('#ctot'); const cd = $('#cdiff');
+  if (!ct) return;
+  if (!filled) { ct.textContent = '—'; cd.textContent = '—'; cd.className = 'r diff'; return; }
+  ct.textContent = brl(tc);
+  const d = tc - closingPeriod.total;
+  cd.textContent = all ? (d === 0 ? 'Confere' : signed(d)) : 'em conferência';
+  cd.className = 'r diff ' + (all ? (d === 0 ? 'ok' : 'low') : '');
+}
+
+function submitClosing() {
+  const counted = {};
+  for (const inp of document.querySelectorAll('[data-count]')) {
+    const k = inp.dataset.count;
+    if (inp.value.trim() === '' && closingPeriod.expected[k] > 0) { $('#cerr').textContent = `Informe o valor conferido de ${methodLabel(k)}. Digite 0 se não há nada.`; inp.focus(); return; }
+    counted[k] = parseMoney(inp.value);
+  }
+  $('#cerr').textContent = '';
+  const diff = sumKeys(counted) - closingPeriod.total;
+  const text = diff === 0 ? 'O valor conferido bate com o esperado. As próximas vendas entram em um novo fechamento.' : `${diff < 0 ? `Faltam ${brl(-diff)}` : `Sobram ${brl(diff)}`} no total conferido. As próximas vendas entram em um novo fechamento.`;
+  confirmBox('Fechar o caixa?', text, 'Fechar o caixa', async () => {
+    try {
+      const r = await api('POST', '/api/closing', { counted, note: $('#cnote').value });
+      toast('Caixa fechado');
+      await renderFechamento();
+      showClosing(r.closing);
+    } catch (e) { failToast(e); }
+  });
 }
 
 /* ---------- equipe (admin) ---------- */
@@ -746,13 +871,19 @@ document.addEventListener('click', (e) => {
   if (d.user) return editUser(d.user);
   if ('retry' in d) return go(view);
   if (d.filter) { salesFilter = d.filter; return renderVendas(); }
+  if (d.closing) return showClosing(closedList.find((c) => c.id === +d.closing));
   if (t.id === 'csv') return exportCsv();
   if (d.reprint) return reprint(loadedSales.find((s) => s.id === +d.reprint));
+});
+
+document.addEventListener('submit', (e) => {
+  if (e.target.id === 'closeform') { e.preventDefault(); submitClosing(); }
 });
 
 document.addEventListener('input', (e) => {
   if (e.target.id === 'search') { search = e.target.value; renderGrid(); }
   if (e.target.id === 'received') { received = e.target.value; renderCart(); }
+  if (e.target.dataset && e.target.dataset.count) updateClosingDiffs();
 });
 
 document.addEventListener('keydown', (e) => {
@@ -780,7 +911,7 @@ document.addEventListener('keydown', (e) => {
   if (view !== 'caixa' || !$('#search')) return;
   if (e.key === '/' && document.activeElement.tagName !== 'INPUT') { e.preventDefault(); $('#search').focus(); $('#search').select(); return; }
   if (e.key === 'F9' || (e.key === 'Enter' && e.ctrlKey)) { e.preventDefault(); confirmSale(); return; }
-  if (e.altKey && ['1', '2', '3'].includes(e.key)) { e.preventDefault(); method = ['dinheiro', 'pix', 'cartao'][+e.key - 1]; renderCart(); if (method === 'dinheiro') { const r = $('#received'); r && r.focus(); } return; }
+  if (e.altKey && ['1', '2', '3', '4'].includes(e.key)) { e.preventDefault(); method = Object.keys(METHODS)[+e.key - 1]; renderCart(); if (method === 'dinheiro') { const r = $('#received'); r && r.focus(); } return; }
   if (e.key === 'Enter' && e.target.id === 'search') {
     e.preventDefault();
     const first = matches()[0];

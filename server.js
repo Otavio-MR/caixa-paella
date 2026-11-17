@@ -10,7 +10,7 @@ const store = createStore();
 const DEFAULT_SETTINGS = {
   eventName: 'Paella Mineira Solidária',
   beneficiary: 'Hospital do Câncer de Londrina',
-  edition: '6ª edição',
+  edition: '7ª edição',
   featuredProductId: null,
   paperWidth: 80,
   voucherHeight: 50,
@@ -80,7 +80,7 @@ async function seedDemo() {
   const caixa = caixaPw ? await addUser('caixa', 'Caixa 1', 'caixa', caixaPw) : admin;
   const caixaName = caixaPw ? 'Caixa 1' : 'Administrador';
   if ((await store.countProducts()) === 0) {
-    for (const [name, price, color] of [['Paella Mineira (1 kg)', 8000, '#E8833A'], ['Refrigerante lata', 600, '#D8573F'], ['Suco natural', 500, '#8EB36B'], ['Água mineral', 300, '#5FA8A0'], ['Pudim', 700, '#C98BB5']]) {
+    for (const [name, price, color] of [['Paella Mineira (1 kg)', 8000, '#E87717'], ['Refrigerante lata', 600, '#B4482B'], ['Suco natural', 500, '#F2A33A'], ['Água mineral', 300, '#C26A7A'], ['Pudim', 700, '#CDAE8A']]) {
       await store.insertProduct({ name, price, color, active: true, photo: '' });
     }
   }
@@ -182,7 +182,7 @@ app.get('/api/bootstrap', wrap(async (req, res) => {
 function readProduct(body) {
   const name = cleanName(body.name, 40);
   const price = Math.round(+body.price);
-  const color = /^#[0-9a-f]{6}$/i.test(body.color) ? body.color : '#e8833a';
+  const color = /^#[0-9a-f]{6}$/i.test(body.color) ? body.color : '#e87717';
   if (!name) return { error: 'Informe o nome do produto.' };
   if (!Number.isInteger(price) || price <= 0 || price > 10000000) return { error: 'Informe um preço válido.' };
   const ph = String(body.photo || '');

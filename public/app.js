@@ -28,8 +28,8 @@ function parseMoney(str) {
   return Number.isFinite(v) ? v : 0;
 }
 const moneyInput = (cents) => (cents / 100).toFixed(2).replace('.', ',');
-const COLORS = ['#E8833A', '#F2B35E', '#D8573F', '#8EB36B', '#5FA8A0', '#C98BB5', '#B79A7A'];
-const COLOR_NAMES = { '#E8833A': 'Laranja', '#F2B35E': 'Amarelo', '#D8573F': 'Vermelho', '#8EB36B': 'Verde', '#5FA8A0': 'Azul esverdeado', '#C98BB5': 'Rosa', '#B79A7A': 'Areia' };
+const COLORS = ['#E87717', '#902539', '#B4482B', '#F2A33A', '#C26A7A', '#CDAE8A', '#5C1626'];
+const COLOR_NAMES = { '#E87717': 'Laranja', '#902539': 'Vinho', '#B4482B': 'Tijolo', '#F2A33A': 'Âmbar', '#C26A7A': 'Rosé', '#CDAE8A': 'Areia', '#5C1626': 'Vinho escuro', '#E8833A': 'Laranja', '#F2B35E': 'Âmbar', '#D8573F': 'Tijolo', '#8EB36B': 'Verde', '#5FA8A0': 'Azul esverdeado', '#C98BB5': 'Rosé', '#B79A7A': 'Areia' };
 const METHODS = { dinheiro: ['Dinheiro', 'cash'], pix: ['Pix', 'qr'], cartao: ['Cartão', 'card'] };
 const fmtDate = (iso) => new Date(iso).toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' });
 const startOfToday = () => { const d = new Date(); d.setHours(0, 0, 0, 0); return d.toISOString(); };
@@ -167,16 +167,20 @@ function authScreen(setup, message) {
   $('#topbar').hidden = true;
   $('#view').className = 'bare';
   $('#view').innerHTML = `<div class="auth">
-    <section class="auth-art" aria-hidden="true">
-      <div class="collage">
-        <figure class="ph a"><img src="assets/photos/login-panela.webp" alt=""></figure>
-        <figure class="ph b"><img src="assets/photos/login-marmita.webp" alt=""></figure>
+    <section class="auth-art">
+      <div class="collage" aria-hidden="true">
+        <figure class="ph a"><img src="assets/photos/login-panela.webp?v=2" alt=""></figure>
+        <figure class="ph b"><img src="assets/photos/login-marmita.webp?v=2" alt=""></figure>
+      </div>
+      <div class="host">
+        <img src="assets/mark/loja.png" alt="">
+        <p><span>Loja anfitriã</span>Augusta e Respeitável Loja Simbólica Renovação Londrinense</p>
       </div>
     </section>
     <section class="auth-form">
       <div class="auth-wrap">
         <div class="auth-brand">
-          <img class="login-logo" src="assets/mark/logo.png" alt="${esc(brand.eventName || 'Caixa')}">
+          <img class="login-logo" src="assets/mark/paella7-horizontal.png" alt="${esc(brand.eventName || 'Caixa')}">
         </div>
         <form id="lf" novalidate>
           <h1>${setup ? 'Primeiro acesso' : 'Entrar'}</h1>
@@ -313,7 +317,7 @@ const isAdmin = () => me && me.role === 'admin';
 function renderChrome() {
   $('#topbar').hidden = false;
   $('#view').className = '';
-  $('#brand').innerHTML = `<img class="logo-full" src="assets/mark/logo.png" alt="${esc(brand.eventName || 'Caixa')}">`;
+  $('#brand').innerHTML = `<img class="logo-full" src="assets/mark/paella7-horizontal.png" alt="${esc(brand.eventName || 'Caixa')}">`;
   const tabs = [['caixa', 'Caixa', 'cart', 'F1'], ['vendas', isAdmin() ? 'Vendas' : 'Minhas vendas', 'receipt', 'F3']];
   if (isAdmin()) tabs.push(['produtos', 'Produtos', 'package', 'F4'], ['estoque', 'Estoque', 'arroz', ''], ['usuarios', 'Equipe', 'users', ''], ['config', 'Ajustes', 'sliders', '']);
   $('#tabs').innerHTML = tabs.map(([k, l, ic, key]) => `<button class="tab" data-view="${k}" ${view === k ? 'aria-current="page"' : ''}>${icon(ic)}<span>${l}</span>${key ? `<kbd>${key}</kbd>` : ''}</button>`).join('');
